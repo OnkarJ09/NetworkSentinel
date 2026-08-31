@@ -18,6 +18,8 @@ Joystick joystick;
 
 int selectedAP = 0;
 
+int selectedLANDevice = 0;
+
 // ============================================================
 // SCREEN DRAWING
 // ============================================================
@@ -650,6 +652,137 @@ void drawWiFiStatistics() {
 }
 
 
+void drawLAN() {
+
+    oled.clear();
+
+    oled.header(
+        "LAN DISCOVERY"
+    );
+
+    auto& scanner =
+        appState.network.lanScanner;
+
+    if (
+        scanner.scanning
+    ) {
+
+        oled.text(
+            0,
+            16,
+            "SCANNING LAN"
+        );
+
+        oled.text(
+            0,
+            32,
+            String(scanner.scannedHosts) +
+            "/" +
+            String(scanner.totalHosts) +
+            " hosts"
+        );
+
+        oled.text(
+            0,
+            48,
+            String(scanner.deviceCount) +
+            " devices"
+        );
+
+        oled.update();
+
+        return;
+    }
+
+    if (
+        scanner.deviceCount == 0
+    ) {
+
+        oled.text(
+            0,
+            18,
+            "No LAN data"
+        );
+
+        oled.text(
+            0,
+            34,
+            "PRESS = SCAN"
+        );
+
+        oled.text(
+            0,
+            50,
+            appState.network.localIP.toString()
+        );
+
+        oled.update();
+
+        return;
+    }
+
+    if (
+        selectedLANDevice >=
+        scanner.deviceCount
+    ) {
+
+        selectedLANDevice =
+            scanner.deviceCount - 1;
+    }
+
+    LANDevice& device =
+        scanner.devices[
+            selectedLANDevice
+        ];
+
+    oled.text(
+        0,
+        12,
+        String(selectedLANDevice + 1) +
+        "/" +
+        String(scanner.deviceCount)
+    );
+
+    oled.text(
+        0,
+        24,
+        device.ip.toString()
+    );
+
+    String name =
+        device.hostname.length() > 0
+            ? device.hostname
+            : "unknown";
+
+    if (
+        name.length() > 20
+    ) {
+
+        name =
+            name.substring(
+                0,
+                20
+            );
+    }
+
+    oled.text(
+        0,
+        38,
+        name
+    );
+
+    oled.text(
+        0,
+        52,
+        device.latency >= 0
+            ? String((int)device.latency) + "ms ONLINE"
+            : "OFFLINE"
+    );
+
+    oled.update();
+}
+
+
 void drawCurrentScreen() {
 
     if (
@@ -679,25 +812,7 @@ void drawCurrentScreen() {
 
         case 2:
 
-            oled.clear();
-
-            oled.header(
-                "LAN SCANNER"
-            );
-
-            oled.text(
-                0,
-                20,
-                "COMING NEXT"
-            );
-
-            oled.text(
-                0,
-                35,
-                "V6 NETWORK ENGINE"
-            );
-
-            oled.update();
+            drawLAN();
 
             break;
 
@@ -979,6 +1094,66 @@ void loop() {
             sentinelNetwork.scanWiFi();
         }
 
+    }
+
+    // ========================================================
+    // LAN DISCOVERY
+    // ========================================================
+
+    else if (
+        menu.selected() == 2
+    ) {
+
+        switch (direction) {
+
+            case JoyDirection::UP:
+
+                if (
+                    selectedLANDevice > 0
+                ) {
+
+                    selectedLANDevice--;
+                }
+
+                break;
+
+            case JoyDirection::DOWN:
+
+                if (
+                    selectedLANDevice <
+                    appState.network
+                        .lanScanner
+                        .deviceCount - 1
+                ) {
+
+                    selectedLANDevice++;
+                }
+
+                break;
+
+            case JoyDirection::RIGHT:
+
+                sentinelNetwork.scanLAN();
+
+                break;
+
+            case JoyDirection::LEFT:
+
+                menu.back();
+
+                break;
+
+            default:
+
+                break;
+        }
+
+        if (
+            joystick.wasPressed()
+        ) {
+
+            sentinelNetwork.scanLAN();
+        }
     }
 
     // ========================================================

@@ -150,6 +150,17 @@ void SentinelNetwork::taskLoop() {
         }
 
         // ====================================================
+        // LAN DISCOVERY PROCESSOR
+        // ====================================================
+
+        if (
+            appState.network.lanScanner.scanning
+        ) {
+
+            calculateLANStatistics();
+        }
+
+        // ====================================================
         // YIELD
         // ====================================================
 
@@ -1200,4 +1211,355 @@ bool SentinelNetwork::isConnected() {
         WiFi.status() ==
         WL_CONNECTED
     );
+}
+
+// ============================================================
+// LAN DISCOVERY
+// ============================================================
+
+void SentinelNetwork::scanLAN() {
+
+    if (
+        appState.network.lanScanner.scanning
+    ) {
+
+        Serial.println(
+            "LAN scan already running"
+        );
+
+        return;
+    }
+
+    if (
+        WiFi.status() != WL_CONNECTED
+    ) {
+
+        Serial.println(
+            "Cannot scan LAN: WiFi disconnected"
+        );
+
+        return;
+    }
+
+    Serial.println();
+
+    Serial.println(
+        "========== LAN DISCOVERY =========="
+    );
+
+    // --------------------------------------------------------
+    // Calculate subnet range
+    // --------------------------------------------------------
+
+    IPAddress localIP = WiFi.localIP();
+    IPAddress mask = WiFi.subnetMask();
+
+    // Network address = IP AND mask
+    appState.network.lanScanner.subnetStart =
+        IPAddress(
+            localIP[0] & mask[0],
+            localIP[1] & mask[1],
+            localIP[2] & mask[2],
+            1
+        );
+
+    // Broadcast address = IP OR ~mask
+    appState.network.lanScanner.subnetEnd =
+        IPAddress(
+            localIP[0] | ~mask[0],
+            localIP[1] | ~mask[1],
+            localIP[2] | ~mask[2],
+            254
+        );
+
+    appState.network.lanScanner.totalHosts =
+        (uint32_t)appState.network.lanScanner.subnetEnd[3] -
+        (uint32_t)appState.network.lanScanner.subnetStart[3] + 1;
+
+    // Clear old data
+    appState.network.lanScanner.deviceCount = 0;
+    appState.network.lanScanner.scannedHosts = 0;
+
+    for (
+        int i = 0;
+        i < MAX_LAN_DEVICES;
+        i++
+    ) {
+
+        appState.network.lanScanner.devices[i].online =
+            false;
+
+        appState.network.lanScanner.devices[i].latency =
+            -1;
+
+        appState.network.lanScanner.devices[i].hostname =
+            "";
+
+        appState.network.lanScanner.devices[i].mac =
+            "";
+
+        appState.network.lanScanner.devices[i].lastSeen =
+            0;
+
+        appState.network.lanScanner.devices[i].firstSeen =
+            0;
+    }
+
+    LANDevice& self =
+        appState.network.lanScanner.devices[
+            appState.network.lanScanner.deviceCount++
+        ];
+
+    self.ip = localIP;
+    self.hostname = "This device";
+    self.mac = WiFi.macAddress();
+    self.online = true;
+    self.latency = 0;
+    self.lastSeen = millis();
+
+    if (self.firstSeen == 0) {
+
+        self.firstSeen = self.lastSeen;
+    }
+
+    appState.network.lanScanner.scanning = true;
+    appState.network.lanScanner.scanComplete = false;
+
+    Serial.print(
+        "Scanning subnet: "
+    );
+
+    Serial.print(
+        appState.network.lanScanner.subnetStart.toString()
+    );
+
+    Serial.print(
+        " - "
+    );
+
+    Serial.println(
+        appState.network.lanScanner.subnetEnd.toString()
+    );
+
+    Serial.print(
+        "Total hosts to scan: "
+    );
+
+    Serial.println(
+        appState.network.lanScanner.totalHosts
+    );
+}
+
+bool SentinelNetwork::isLANScanning() {
+
+    return appState.network.lanScanner.scanning;
+}
+
+void SentinelNetwork::calculateLANStatistics() {
+
+    auto& scanner =
+        appState.network.lanScanner;
+
+    // --------------------------------------------------------
+    // Scan complete?
+    // --------------------------------------------------------
+
+    if (
+        scanner.scannedHosts >=
+        scanner.totalHosts
+    ) {
+
+        scanner.scanning = false;
+        scanner.scanComplete = true;
+        scanner.lastScan = millis();
+
+        Serial.println();
+        Serial.println(
+            "========== LAN RESULTS =========="
+        );
+
+        Serial.print(
+            "Devices found: "
+        );
+
+        Serial.println(
+            scanner.deviceCount
+        );
+
+        for (
+            int i = 0;
+            i < scanner.deviceCount;
+            i++
+        ) {
+
+            LANDevice& device =
+                scanner.devices[i];
+
+            Serial.print(
+                device.ip.toString()
+            );
+
+            Serial.print(" | ");
+
+            Serial.print(
+                device.hostname.length() > 0
+                    ? device.hostname
+                    : "unknown"
+            );
+
+            Serial.print(" | ");
+
+            Serial.print(
+                device.latency >= 0
+                    ? String((int)device.latency) + "ms"
+                    : "--"
+            );
+
+            Serial.println();
+        }
+
+        Serial.println(
+            "=================================="
+        );
+
+        return;
+    }
+
+    // --------------------------------------------------------
+    // Build IP to ping next
+    // --------------------------------------------------------
+
+    IPAddress base =
+        scanner.subnetStart;
+
+    IPAddress target(
+        base[0],
+        base[1],
+        base[2],
+        base[3] + scanner.scannedHosts
+    );
+
+    scanner.scannedHosts++;
+
+    // Skip our own IP
+    if (
+        target == WiFi.localIP()
+    ) {
+
+        return;
+    }
+
+    // --------------------------------------------------------
+    // Probe target with TCP connect
+    // --------------------------------------------------------
+
+    WiFiClient client;
+
+    uint32_t start = millis();
+
+    bool reached =
+        client.connect(
+            target,
+            80,
+            300
+        );
+
+    uint32_t elapsed = millis() - start;
+
+    client.stop();
+
+    // If port 80 failed, try port 443
+    if (!reached) {
+
+        start = millis();
+
+        reached =
+            client.connect(
+                target,
+                443,
+                300
+            );
+
+        elapsed = millis() - start;
+
+        client.stop();
+    }
+
+    // --------------------------------------------------------
+    // Gateway is always "online" if we pass through it
+    // --------------------------------------------------------
+
+    bool isGateway =
+        (target == WiFi.gatewayIP());
+
+    if (!reached && isGateway) {
+
+        reached =
+            appState.network.gatewayOnline;
+
+        elapsed =
+            (uint32_t)appState.network.gatewayPing;
+    }
+
+    if (!reached) {
+
+        return;
+    }
+
+    // --------------------------------------------------------
+    // Store device
+    // --------------------------------------------------------
+
+    if (
+        scanner.deviceCount >=
+        MAX_LAN_DEVICES
+    ) {
+
+        return;
+    }
+
+    LANDevice& device =
+        scanner.devices[
+            scanner.deviceCount++
+        ];
+
+    device.ip = target;
+    device.online = true;
+    device.latency = (float)elapsed;
+    device.lastSeen = millis();
+
+    if (device.firstSeen == 0) {
+        device.firstSeen = millis();
+    }
+
+    // --------------------------------------------------------
+    // Hostname lookup
+    // --------------------------------------------------------
+
+    String name = "";
+
+    if (isGateway) {
+
+        name = "Gateway";
+
+    } else if (target == WiFi.localIP()) {
+
+        name = "This device";
+    }
+
+    device.hostname = name;
+
+    Serial.print("Found: ");
+    Serial.print(target.toString());
+
+    if (name.length() > 0) {
+
+        Serial.print(" (");
+        Serial.print(name);
+        Serial.print(")");
+    }
+
+    Serial.print(" ");
+    Serial.print(elapsed);
+    Serial.println("ms");
 }

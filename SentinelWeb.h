@@ -33,11 +33,17 @@ private:
 
     void broadcastWiFi();
 
+    void broadcastLAN();
+
     void handleRoot();
 
     void handleAPI();
 
     void handleWiFi();
+
+    void handleLAN();
+
+    void handleLANScan();
 
     void handleNotFound();
 
@@ -55,11 +61,15 @@ private:
 
     String createHistoryJSON();
 
+    String createLANJSON();
+
     uint32_t lastTelemetryBroadcast = 0;
 
     uint32_t lastWiFiBroadcast = 0;
 
     uint32_t lastHistoryBroadcast = 0;
+
+    uint32_t lastLANBroadcast = 0;
 };
 
 extern SentinelWeb sentinelWeb;

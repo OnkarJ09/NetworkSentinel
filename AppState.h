@@ -5,6 +5,7 @@
 
 #define MAX_WIFI_NETWORKS 30
 #define MAX_WIFI_CHANNELS 14
+#define MAX_LAN_DEVICES 32
 
 // ============================================================
 // WIFI NETWORK
@@ -21,6 +22,52 @@ struct WiFiNetworkInfo {
     int32_t channel = 0;
 
     String security;
+};
+
+// ============================================================
+// LAN DEVICE
+// ============================================================
+
+struct LANDevice {
+
+    IPAddress ip;
+
+    String hostname;
+
+    String mac;
+
+    bool online = false;
+
+    float latency = -1;
+
+    uint32_t lastSeen = 0;
+
+    uint32_t firstSeen = 0;
+};
+
+// ============================================================
+// LAN SCANNER
+// ============================================================
+
+struct LANScannerState {
+
+    LANDevice devices[MAX_LAN_DEVICES];
+
+    int deviceCount = 0;
+
+    bool scanning = false;
+
+    bool scanComplete = false;
+
+    uint32_t lastScan = 0;
+
+    IPAddress subnetStart;
+
+    IPAddress subnetEnd;
+
+    int totalHosts = 0;
+
+    int scannedHosts = 0;
 };
 
 // ============================================================
@@ -144,6 +191,12 @@ struct NetworkState {
     // --------------------------------------------------------
 
     WiFiAnalyzerState analyzer;
+
+    // --------------------------------------------------------
+    // LAN SCANNER
+    // --------------------------------------------------------
+
+    LANScannerState lanScanner;
 };
 
 // ============================================================

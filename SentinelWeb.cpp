@@ -1,5 +1,6 @@
 #include "SentinelWeb.h"
 #include "AppState.h"
+#include "NetworkManager.h"
 
 SentinelWeb sentinelWeb;
 
@@ -682,14 +683,130 @@ Security
 >
 
 <h1>
-LAN Scanner
+LAN Discovery
 </h1>
+
+<div class="grid">
 
 <div class="card">
 
-<p>
-LAN scanner coming next.
-</p>
+<div class="card-title">
+Devices
+</div>
+
+<div
+    id="lanDeviceCount"
+    class="value"
+>
+--
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="card-title">
+Scan State
+</div>
+
+<div
+    id="lanScanState"
+    class="value"
+>
+IDLE
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="card-title">
+Subnet
+</div>
+
+<div
+    id="lanSubnet"
+    class="value"
+    style="font-size:18px"
+>
+--
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="card-title">
+Progress
+</div>
+
+<div
+    id="lanProgress"
+    class="value"
+>
+--
+</div>
+
+</div>
+
+</div>
+
+<div class="card" style="margin-bottom: 16px;">
+
+<button
+    onclick="startLANScan()"
+    style="padding: 10px 14px; border: 0; border-radius: 8px; background: #35d07f; color: #07110b; font-weight: 700; cursor: pointer;"
+>
+Start LAN Scan
+</button>
+
+<span
+    id="lanHint"
+    class="label"
+    style="margin-left: 12px;"
+>
+Scans the local subnet without leaving this page.
+</span>
+
+</div>
+
+<div class="card">
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>
+IP Address
+</th>
+
+<th>
+Hostname
+</th>
+
+<th>
+MAC
+</th>
+
+<th>
+Latency
+</th>
+
+<th>
+Status
+</th>
+
+</tr>
+
+</thead>
+
+<tbody id="lanTable">
+
+</tbody>
+
+</table>
 
 </div>
 
@@ -1061,6 +1178,128 @@ function updateWiFi(
     );
 }
 
+function updateLAN(
+    data
+) {
+
+    document.getElementById(
+        "lanDeviceCount"
+    ).textContent =
+        data.deviceCount;
+
+    document.getElementById(
+        "lanScanState"
+    ).textContent =
+        data.scanning
+            ? "SCANNING"
+            : (data.scanComplete ? "COMPLETE" : "IDLE");
+
+    document.getElementById(
+        "lanScanState"
+    ).className =
+        data.scanning
+            ? "value"
+            : (data.scanComplete ? "value ok" : "value");
+
+    document.getElementById(
+        "lanSubnet"
+    ).textContent =
+        (data.subnetStart || "--") +
+        " - " +
+        (data.subnetEnd || "--");
+
+    document.getElementById(
+        "lanProgress"
+    ).textContent =
+        data.totalHosts > 0
+            ? data.scannedHosts + "/" + data.totalHosts
+            : "--";
+
+    const table =
+        document.getElementById(
+            "lanTable"
+        );
+
+    table.innerHTML = "";
+
+    if (!data.devices || data.devices.length === 0) {
+
+        const row =
+            document.createElement(
+                "tr"
+            );
+
+        row.innerHTML =
+            "<td colspan='5' class='label'>No LAN devices discovered yet.</td>";
+
+        table.appendChild(row);
+
+        return;
+    }
+
+    data.devices.forEach(
+        device => {
+
+            const row =
+                document.createElement(
+                    "tr"
+                );
+
+            row.innerHTML = `
+                <td>${device.ip}</td>
+                <td>${device.hostname || "unknown"}</td>
+                <td>${device.mac || "--"}</td>
+                <td>${device.latency >= 0 ? device.latency + " ms" : "--"}</td>
+                <td><span class="badge">${device.online ? "ONLINE" : "OFFLINE"}</span></td>
+            `;
+
+            table.appendChild(row);
+        }
+    );
+}
+
+async function refreshLAN() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/lan"
+            );
+
+        const data =
+            await response.json();
+
+        updateLAN(data);
+
+    } catch (error) {
+
+        console.error(
+            "LAN refresh failed:",
+            error
+        );
+    }
+}
+
+async function startLANScan() {
+
+    try {
+
+        await fetch(
+            "/api/lan/scan"
+        );
+
+        refreshLAN();
+
+    } catch (error) {
+
+        console.error(
+            "LAN scan request failed:",
+            error
+        );
+    }
+}
+
 async function refresh() {
 
     try {
@@ -1088,6 +1327,8 @@ async function refresh() {
         updateWiFi(
             wifiData
         );
+
+        await refreshLAN();
 
     }
 
@@ -1192,6 +1433,20 @@ function connectWebSocket() {
                 ) {
 
                     updateHistory(
+                        data
+                    );
+                }
+
+                // --------------------------------------------
+                // LAN
+                // --------------------------------------------
+
+                else if (
+                    data.type ===
+                    "lan"
+                ) {
+
+                    updateLAN(
                         data
                     );
                 }
@@ -1746,6 +2001,22 @@ void SentinelWeb::update() {
 
         broadcastWiFi();
     }
+
+    // ========================================================
+    // LAN DATA
+    // ========================================================
+
+    if (
+        now -
+        lastLANBroadcast >=
+        3000
+    ) {
+
+        lastLANBroadcast =
+            now;
+
+        broadcastLAN();
+    }
 }
 
 // ============================================================
@@ -1775,6 +2046,22 @@ void SentinelWeb::setupRoutes() {
         HTTP_GET,
         [this]() {
             handleWiFi();
+        }
+    );
+
+    server.on(
+        "/api/lan",
+        HTTP_GET,
+        [this]() {
+            handleLAN();
+        }
+    );
+
+    server.on(
+        "/api/lan/scan",
+        HTTP_GET,
+        [this]() {
+            handleLANScan();
         }
     );
 
@@ -1833,6 +2120,12 @@ void SentinelWeb::webSocketEvent(
             String wifi =
                 createWiFiEventJSON();
 
+            String history =
+                createHistoryJSON();
+
+            String lan =
+                createLANJSON();
+
             webSocket.sendTXT(
                 clientNum,
                 telemetry
@@ -1841,6 +2134,16 @@ void SentinelWeb::webSocketEvent(
             webSocket.sendTXT(
                 clientNum,
                 wifi
+            );
+
+            webSocket.sendTXT(
+                clientNum,
+                history
+            );
+
+            webSocket.sendTXT(
+                clientNum,
+                lan
             );
 
             break;
@@ -1927,6 +2230,23 @@ void SentinelWeb::broadcastWiFi() {
 
     webSocket.broadcastTXT(
         wifi
+    );
+}
+
+void SentinelWeb::broadcastLAN() {
+
+    if (
+        webSocket.connectedClients() == 0
+    ) {
+
+        return;
+    }
+
+    String lan =
+        createLANJSON();
+
+    webSocket.broadcastTXT(
+        lan
     );
 }
 
@@ -2137,6 +2457,31 @@ void SentinelWeb::handleWiFi() {
         200,
         "application/json",
         createWiFiJSON()
+    );
+}
+
+// ============================================================
+// LAN API
+// ============================================================
+
+void SentinelWeb::handleLAN() {
+
+    server.send(
+        200,
+        "application/json",
+        createLANJSON()
+    );
+}
+
+
+void SentinelWeb::handleLANScan() {
+
+    sentinelNetwork.scanLAN();
+
+    server.send(
+        202,
+        "application/json",
+        createLANJSON()
     );
 }
 
@@ -2547,6 +2892,131 @@ String SentinelWeb::createHistoryJSON() {
             "\"dns\":" +
             String(
                 sample.dnsTime
+            );
+
+        json += "}";
+    }
+
+    json += "]}";
+
+    return json;
+}
+
+
+String SentinelWeb::createLANJSON() {
+
+    auto& scanner =
+        appState.network.lanScanner;
+
+    String json = "{";
+
+    json += "\"type\":\"lan\",";
+
+    json +=
+        "\"localIP\":\"" +
+        appState.network.localIP.toString() +
+        "\",";
+
+    json +=
+        "\"gateway\":\"" +
+        appState.network.gatewayIP.toString() +
+        "\",";
+
+    json +=
+        "\"subnetMask\":\"" +
+        appState.network.subnetMask.toString() +
+        "\",";
+
+    json +=
+        "\"subnetStart\":\"" +
+        scanner.subnetStart.toString() +
+        "\",";
+
+    json +=
+        "\"subnetEnd\":\"" +
+        scanner.subnetEnd.toString() +
+        "\",";
+
+    json +=
+        "\"scanning\":" +
+        String(
+            scanner.scanning
+                ? "true"
+                : "false"
+        ) +
+        ",";
+
+    json +=
+        "\"scanComplete\":" +
+        String(
+            scanner.scanComplete
+                ? "true"
+                : "false"
+        ) +
+        ",";
+
+    json +=
+        "\"scannedHosts\":" +
+        String(scanner.scannedHosts) +
+        ",";
+
+    json +=
+        "\"totalHosts\":" +
+        String(scanner.totalHosts) +
+        ",";
+
+    json +=
+        "\"deviceCount\":" +
+        String(scanner.deviceCount) +
+        ",";
+
+    json += "\"devices\":[";
+
+    for (
+        int i = 0;
+        i < scanner.deviceCount;
+        i++
+    ) {
+
+        if (i > 0) {
+            json += ",";
+        }
+
+        LANDevice& device =
+            scanner.devices[i];
+
+        json += "{";
+
+        json +=
+            "\"ip\":\"" +
+            device.ip.toString() +
+            "\",";
+
+        json +=
+            "\"hostname\":\"" +
+            device.hostname +
+            "\",";
+
+        json +=
+            "\"mac\":\"" +
+            device.mac +
+            "\",";
+
+        json +=
+            "\"online\":" +
+            String(
+                device.online
+                    ? "true"
+                    : "false"
+            ) +
+            ",";
+
+        json +=
+            "\"latency\":" +
+            String(
+                device.latency >= 0
+                    ? (int)device.latency
+                    : -1
             );
 
         json += "}";

@@ -25,6 +25,16 @@ public:
 
     void calculateWiFiStatistics();
 
+    // ========================================================
+    // LAN DISCOVERY
+    // ========================================================
+
+    void scanLAN();
+
+    bool isLANScanning();
+
+    void calculateLANStatistics();
+
 private:
 
     void connectWiFi();
