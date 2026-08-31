@@ -68,6 +68,23 @@ struct WiFiAnalyzerState {
     int congestion = 0;
 };
 
+
+
+#define TELEMETRY_HISTORY_SIZE 60
+
+struct TelemetrySample {
+
+    uint32_t timestamp;
+
+    float ping;
+
+    int rssi;
+
+    uint8_t packetLoss;
+
+    uint32_t dnsTime;
+};
+
 // ============================================================
 // NETWORK STATE
 // ============================================================
@@ -136,6 +153,14 @@ struct NetworkState {
 struct AppState {
 
     NetworkState network;
+    
+    TelemetrySample telemetryHistory[
+    TELEMETRY_HISTORY_SIZE
+    ];
+
+    uint8_t telemetryHistoryIndex = 0;
+
+    uint8_t telemetryHistoryCount = 0;
 
     uint32_t bootTime = 0;
 

@@ -519,6 +519,50 @@ DNS
 
 </div>
 
+<h2 style="margin-top: 32px;">
+Telemetry Graphs
+</h2>
+
+<div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+
+<div class="card">
+
+<canvas
+    id="pingCanvas"
+    style="width: 100%; height: 200px;"
+></canvas>
+
+</div>
+
+<div class="card">
+
+<canvas
+    id="rssiCanvas"
+    style="width: 100%; height: 200px;"
+></canvas>
+
+</div>
+
+<div class="card">
+
+<canvas
+    id="lossCanvas"
+    style="width: 100%; height: 200px;"
+></canvas>
+
+</div>
+
+<div class="card">
+
+<canvas
+    id="dnsCanvas"
+    style="width: 100%; height: 200px;"
+></canvas>
+
+</div>
+
+</div>
+
 </section>
 
 <section
@@ -1056,12 +1100,544 @@ async function refresh() {
     }
 }
 
+
+
+// ============================================================
+// WEBSOCKET LIVE TELEMETRY
+// ============================================================
+
+let socket = null;
+
+function connectWebSocket() {
+
+    const protocol =
+        location.protocol === "https:"
+            ? "wss:"
+            : "ws:";
+
+    socket =
+        new WebSocket(
+            protocol +
+            "//" +
+            location.hostname +
+            ":81/"
+        );
+
+    socket.onopen = function() {
+
+        console.log(
+            "WebSocket connected"
+        );
+
+        document.getElementById(
+            "statusText"
+        ).textContent =
+            "LIVE";
+
+        document.getElementById(
+            "statusDot"
+        ).style.background =
+            "#35d07f";
+    };
+
+    socket.onmessage =
+        function(event) {
+
+            try {
+
+                const data =
+                    JSON.parse(
+                        event.data
+                    );
+
+                // --------------------------------------------
+                // TELEMETRY
+                // --------------------------------------------
+
+                if (
+                    data.type ===
+                    "telemetry"
+                ) {
+
+                    updateLiveTelemetry(
+                        data
+                    );
+
+                    addTelemetryToHistory(
+                        data
+                    );
+                }
+
+                // --------------------------------------------
+                // WIFI
+                // --------------------------------------------
+
+                else if (
+                    data.type ===
+                    "wifi"
+                ) {
+
+                    updateLiveWiFi(
+                        data
+                    );
+                }
+
+                // --------------------------------------------
+                // HISTORY
+                // --------------------------------------------
+
+                else if (
+                    data.type ===
+                    "history"
+                ) {
+
+                    updateHistory(
+                        data
+                    );
+                }
+
+            }
+
+            catch(error) {
+
+                console.error(
+                    "WebSocket JSON error:",
+                    error
+                );
+            }
+        };
+
+    socket.onclose = function() {
+
+        console.log(
+            "WebSocket disconnected"
+        );
+
+        document.getElementById(
+            "statusText"
+        ).textContent =
+            "RECONNECTING";
+
+        setTimeout(
+            connectWebSocket,
+            2000
+        );
+    };
+
+    socket.onerror = function(error) {
+
+        console.error(
+            "WebSocket error:",
+            error
+        );
+
+        socket.close();
+    };
+}
+
+function updateLiveTelemetry(
+    data
+) {
+
+    document.getElementById(
+        "ping"
+    ).textContent =
+        data.ping >= 0
+            ? Math.round(
+                data.ping
+            ) + " ms"
+            : "--";
+
+    document.getElementById(
+        "rssi"
+    ).textContent =
+        data.rssi +
+        " dBm";
+
+    document.getElementById(
+        "loss"
+    ).textContent =
+        data.packetLoss +
+        "%";
+
+    document.getElementById(
+        "channel"
+    ).textContent =
+        data.channel;
+
+    setStatus(
+        document.getElementById(
+            "wifiStatus"
+        ),
+        data.wifi
+    );
+
+    setStatus(
+        document.getElementById(
+            "gatewayStatus"
+        ),
+        data.gateway
+    );
+
+    setStatus(
+        document.getElementById(
+            "internetStatus"
+        ),
+        data.internet
+    );
+
+    setStatus(
+        document.getElementById(
+            "dnsStatus"
+        ),
+        data.dns
+    );
+
+    document.getElementById(
+        "heap"
+    ).textContent =
+        Math.round(
+            data.heap / 1024
+        ) +
+        " KB";
+
+    document.getElementById(
+        "uptime"
+    ).textContent =
+        formatUptime(
+            data.uptime
+        );
+
+    document.getElementById(
+        "statusText"
+    ).textContent =
+        data.internet
+            ? "LIVE"
+            : "OFFLINE";
+}
+
+function updateLiveWiFi(
+    data
+) {
+
+    document.getElementById(
+        "wifiCount"
+    ).textContent =
+        data.count;
+
+    document.getElementById(
+        "avgRSSI"
+    ).textContent =
+        Math.round(
+            data.averageRSSI
+        ) +
+        " dBm";
+
+    document.getElementById(
+        "openNetworks"
+    ).textContent =
+        data.open;
+
+    document.getElementById(
+        "busyChannel"
+    ).textContent =
+        "CH " +
+        data.busiestChannel;
+}
+
+function formatUptime(
+    milliseconds
+) {
+
+    let seconds =
+        Math.floor(
+            milliseconds / 1000
+        );
+
+    let hours =
+        Math.floor(
+            seconds / 3600
+        );
+
+    seconds %= 3600;
+
+    let minutes =
+        Math.floor(
+            seconds / 60
+        );
+
+    seconds %= 60;
+
+    return (
+        hours +
+        ":" +
+        String(minutes)
+            .padStart(2, "0") +
+        ":" +
+        String(seconds)
+            .padStart(2, "0")
+    );
+}
+
+// ============================================================
+// HISTORY & GRAPHS
+// ============================================================
+
+let history = [];
+
+function updateHistory(data) {
+
+    // Load full history buffer
+    history = data.samples || [];
+
+    // Redraw all graphs
+    drawAllGraphs();
+}
+
+function addTelemetryToHistory(data) {
+
+    // Add new sample
+    history.push({
+        time: data.uptime,
+        ping: data.ping,
+        rssi: data.rssi,
+        loss: data.packetLoss,
+        dns: data.dnsTime
+    });
+
+    // Maintain 60-sample limit
+    if (history.length > 60) {
+        history.shift();
+    }
+
+    // Redraw graphs
+    drawAllGraphs();
+}
+
+function drawAllGraphs() {
+
+    if (history.length === 0) {
+        return;
+    }
+
+    drawGraph(
+        "pingCanvas",
+        history.map(s => s.ping),
+        0,
+        200,
+        "ms",
+        "Ping"
+    );
+
+    drawGraph(
+        "rssiCanvas",
+        history.map(s => s.rssi),
+        -100,
+        -20,
+        "dBm",
+        "RSSI"
+    );
+
+    drawGraph(
+        "lossCanvas",
+        history.map(s => s.loss),
+        0,
+        100,
+        "%",
+        "Loss"
+    );
+
+    drawGraph(
+        "dnsCanvas",
+        history.map(s => s.dns),
+        0,
+        500,
+        "ms",
+        "DNS"
+    );
+}
+
+function drawGraph(
+    canvasId,
+    values,
+    minValue,
+    maxValue,
+    unit,
+    title
+) {
+
+    const canvas =
+        document.getElementById(canvasId);
+
+    if (!canvas) {
+        return;
+    }
+
+    const ctx =
+        canvas.getContext("2d");
+
+    const dpr =
+        window.devicePixelRatio || 1;
+
+    const rect =
+        canvas.getBoundingClientRect();
+
+    canvas.width =
+        rect.width * dpr;
+
+    canvas.height =
+        rect.height * dpr;
+
+    ctx.scale(dpr, dpr);
+
+    const width = rect.width;
+    const height = rect.height;
+
+    // Clear
+    ctx.fillStyle = "#0b0f14";
+    ctx.fillRect(0, 0, width, height);
+
+    if (values.length < 2) {
+        ctx.fillStyle = "#8e9aa6";
+        ctx.font = "13px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(
+            "Collecting data...",
+            width / 2,
+            height / 2
+        );
+        return;
+    }
+
+    // Calculate statistics
+    // For RSSI (negative values), we need all values
+    // For other metrics, filter out invalid (-1) values
+    const validValues = values.filter(v =>
+        v !== undefined &&
+        v !== null &&
+        (minValue < 0 ? true : v >= 0)
+    );
+    const currentValue = values[values.length - 1];
+    const min = validValues.length > 0
+        ? Math.min(...validValues)
+        : 0;
+    const max = validValues.length > 0
+        ? Math.max(...validValues)
+        : 0;
+    const avg = validValues.length > 0
+        ? validValues.reduce((a, b) => a + b, 0) / validValues.length
+        : 0;
+
+    // Auto-scale to actual data
+    let dataMin = Math.min(...validValues);
+    let dataMax = Math.max(...validValues);
+
+    // Use provided min/max if data fits
+    if (dataMin >= minValue && dataMax <= maxValue) {
+        // Data fits in range
+    } else {
+        // Expand range for data
+        minValue = Math.min(minValue, dataMin - 10);
+        maxValue = Math.max(maxValue, dataMax + 10);
+    }
+
+    const padding = 40;
+    const graphWidth = width - padding * 2;
+    const graphHeight = height - padding * 2;
+
+    // Grid
+    ctx.strokeStyle = "#1b2630";
+    ctx.lineWidth = 1;
+
+    for (let i = 0; i <= 4; i++) {
+        const y = padding + (graphHeight / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(padding, y);
+        ctx.lineTo(width - padding, y);
+        ctx.stroke();
+    }
+
+    // Axis labels
+    ctx.fillStyle = "#8e9aa6";
+    ctx.font = "11px sans-serif";
+    ctx.textAlign = "right";
+
+    for (let i = 0; i <= 4; i++) {
+        const y = padding + (graphHeight / 4) * i;
+        const value =
+            maxValue - ((maxValue - minValue) / 4) * i;
+        ctx.fillText(
+            Math.round(value) + unit,
+            padding - 8,
+            y + 4
+        );
+    }
+
+    // Line
+    ctx.strokeStyle = "#35d07f";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+
+    for (let i = 0; i < values.length; i++) {
+
+        const x =
+            padding +
+            (graphWidth / (values.length - 1)) * i;
+
+        const normalized =
+            (values[i] - minValue) /
+            (maxValue - minValue);
+
+        const y =
+            padding +
+            graphHeight -
+            normalized * graphHeight;
+
+        if (i === 0) {
+            ctx.moveTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+        }
+    }
+
+    ctx.stroke();
+
+    // Current value
+    ctx.fillStyle = "#e8edf2";
+    ctx.font = "bold 16px sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText(
+        title + ": " +
+        (currentValue >= 0
+            ? Math.round(currentValue) + unit
+            : "--"),
+        padding,
+        20
+    );
+
+    // Statistics (min/max/avg) at bottom
+    ctx.font = "11px sans-serif";
+    ctx.fillStyle = "#8e9aa6";
+
+    const statsText = "Min: " + Math.round(min) + unit +
+        "  Max: " + Math.round(max) + unit +
+        "  Avg: " + Math.round(avg) + unit;
+
+    ctx.textAlign = "right";
+    ctx.fillText(
+        statsText,
+        width - padding,
+        height - 8
+    );
+}
+
+window.addEventListener("resize", drawAllGraphs);
+
+// Initial REST load
 refresh();
 
-setInterval(
-    refresh,
-    2000
-);
+// Live WebSocket connection
+connectWebSocket();
 
 </script>
 
@@ -1079,18 +1655,48 @@ void SentinelWeb::begin() {
 
     setupRoutes();
 
+    setupWebSocket();
+
     server.begin();
 
+    webSocket.begin();
+
+    Serial.println();
+
     Serial.println(
-        "Web server started"
+        "================================"
+    );
+
+    Serial.println(
+        "NETWORK SENTINEL WEB"
+    );
+
+    Serial.println(
+        "================================"
     );
 
     Serial.print(
-        "Open: http://"
+        "HTTP:      http://"
     );
 
     Serial.println(
         WiFi.localIP()
+    );
+
+    Serial.print(
+        "WebSocket: ws://"
+    );
+
+    Serial.print(
+        WiFi.localIP()
+    );
+
+    Serial.println(
+        ":81"
+    );
+
+    Serial.println(
+        "================================"
     );
 }
 
@@ -1101,6 +1707,45 @@ void SentinelWeb::begin() {
 void SentinelWeb::update() {
 
     server.handleClient();
+
+    webSocket.loop();
+
+    uint32_t now =
+        millis();
+
+    // ========================================================
+    // TELEMETRY
+    // ========================================================
+
+    if (
+    now -
+    lastTelemetryBroadcast >=
+    1000
+    ) {
+
+    lastTelemetryBroadcast =
+        now;
+
+    recordTelemetry();
+
+    broadcastTelemetry();
+    }
+
+    // ========================================================
+    // WIFI DATA
+    // ========================================================
+
+    if (
+        now -
+        lastWiFiBroadcast >=
+        2000
+    ) {
+
+        lastWiFiBroadcast =
+            now;
+
+        broadcastWiFi();
+    }
 }
 
 // ============================================================
@@ -1138,6 +1783,322 @@ void SentinelWeb::setupRoutes() {
             handleNotFound();
         }
     );
+}
+
+
+void SentinelWeb::setupWebSocket() {
+
+    webSocket.onEvent(
+        [this](
+            uint8_t clientNum,
+            WStype_t type,
+            uint8_t* payload,
+            size_t length
+        ) {
+
+            webSocketEvent(
+                clientNum,
+                type,
+                payload,
+                length
+            );
+        }
+    );
+}
+
+
+void SentinelWeb::webSocketEvent(
+    uint8_t clientNum,
+    WStype_t type,
+    uint8_t* payload,
+    size_t length
+) {
+
+    switch (type) {
+
+        case WStype_CONNECTED: {
+
+            Serial.print(
+                "WebSocket client connected: "
+            );
+
+            Serial.println(
+                clientNum
+            );
+
+            // Create actual String variables.
+            String telemetry =
+                createTelemetryJSON();
+
+            String wifi =
+                createWiFiEventJSON();
+
+            webSocket.sendTXT(
+                clientNum,
+                telemetry
+            );
+
+            webSocket.sendTXT(
+                clientNum,
+                wifi
+            );
+
+            break;
+        }
+
+        case WStype_DISCONNECTED:
+
+            Serial.print(
+                "WebSocket client disconnected: "
+            );
+
+            Serial.println(
+                clientNum
+            );
+
+            break;
+
+        case WStype_TEXT:
+
+            Serial.print(
+                "WebSocket message: "
+            );
+
+            Serial.println(
+                (char*)payload
+            );
+
+            break;
+
+        default:
+
+            break;
+    }
+}
+
+
+void SentinelWeb::broadcastTelemetry() {
+
+    if (
+        webSocket.connectedClients() == 0
+    ) {
+
+        return;
+    }
+
+    String telemetry =
+        createTelemetryJSON();
+
+    webSocket.broadcastTXT(
+        telemetry
+    );
+}
+
+
+void SentinelWeb::broadcastHistory() {
+
+    if (
+        webSocket.connectedClients() == 0
+    ) {
+
+        return;
+    }
+
+    String history =
+        createHistoryJSON();
+
+    webSocket.broadcastTXT(
+        history
+    );
+}
+
+
+void SentinelWeb::broadcastWiFi() {
+
+    if (
+        webSocket.connectedClients() == 0
+    ) {
+
+        return;
+    }
+
+    String wifi =
+        createWiFiEventJSON();
+
+    webSocket.broadcastTXT(
+        wifi
+    );
+}
+
+
+
+String SentinelWeb::createTelemetryJSON() {
+
+    auto& n =
+        appState.network;
+
+    String json =
+        "{";
+
+    json +=
+        "\"type\":\"telemetry\",";
+
+    json +=
+        "\"wifi\":" +
+        String(
+            n.wifiConnected
+                ? "true"
+                : "false"
+        ) +
+        ",";
+
+    json +=
+        "\"gateway\":" +
+        String(
+            n.gatewayOnline
+                ? "true"
+                : "false"
+        ) +
+        ",";
+
+    json +=
+        "\"internet\":" +
+        String(
+            n.internetOnline
+                ? "true"
+                : "false"
+        ) +
+        ",";
+
+    json +=
+        "\"dns\":" +
+        String(
+            n.dnsOnline
+                ? "true"
+                : "false"
+        ) +
+        ",";
+
+    json +=
+        "\"rssi\":" +
+        String(
+            n.rssi
+        ) +
+        ",";
+
+    json +=
+        "\"channel\":" +
+        String(
+            n.channel
+        ) +
+        ",";
+
+    json +=
+        "\"ping\":" +
+        String(
+            n.internetPing
+        ) +
+        ",";
+
+    json +=
+        "\"gatewayPing\":" +
+        String(
+            n.gatewayPing
+        ) +
+        ",";
+
+    json +=
+        "\"packetLoss\":" +
+        String(
+            n.packetLoss
+        ) +
+        ",";
+
+    json +=
+        "\"dnsTime\":" +
+        String(
+            n.dnsTime
+        ) +
+        ",";
+
+    json +=
+        "\"heap\":" +
+        String(
+            ESP.getFreeHeap()
+        ) +
+        ",";
+
+    json +=
+        "\"uptime\":" +
+        String(
+            millis()
+        );
+
+    json +=
+        "}";
+
+    return json;
+}
+
+
+String SentinelWeb::createWiFiEventJSON() {
+
+    auto& a =
+        appState.network.analyzer;
+
+    String json =
+        "{";
+
+    json +=
+        "\"type\":\"wifi\",";
+
+    json +=
+        "\"count\":" +
+        String(
+            a.networkCount
+        ) +
+        ",";
+
+    json +=
+        "\"averageRSSI\":" +
+        String(
+            a.averageRSSI
+        ) +
+        ",";
+
+    json +=
+        "\"open\":" +
+        String(
+            a.openNetworks
+        ) +
+        ",";
+
+    json +=
+        "\"busiestChannel\":" +
+        String(
+            a.busiestChannel
+        ) +
+        ",";
+
+    json +=
+        "\"congestion\":" +
+        String(
+            a.congestion
+        ) +
+        ",";
+
+    json +=
+        "\"scanning\":" +
+        String(
+            a.scanning
+                ? "true"
+                : "false"
+        );
+
+    json +=
+        "}";
+
+    return json;
 }
 
 // ============================================================
@@ -1461,6 +2422,137 @@ String SentinelWeb::createWiFiJSON() {
     json += "]";
 
     json += "}";
+
+    return json;
+}
+
+
+void SentinelWeb::recordTelemetry() {
+
+    TelemetrySample& sample =
+        appState.telemetryHistory[
+            appState.telemetryHistoryIndex
+        ];
+
+    sample.timestamp =
+        millis();
+
+    sample.ping =
+        appState.network.internetPing;
+
+    sample.rssi =
+        appState.network.rssi;
+
+    sample.packetLoss =
+        appState.network.packetLoss;
+
+    sample.dnsTime =
+        appState.network.dnsTime;
+
+    appState.telemetryHistoryIndex++;
+
+    if (
+        appState.telemetryHistoryIndex >=
+        TELEMETRY_HISTORY_SIZE
+    ) {
+
+        appState.telemetryHistoryIndex = 0;
+    }
+
+    if (
+        appState.telemetryHistoryCount <
+        TELEMETRY_HISTORY_SIZE
+    ) {
+
+        appState.telemetryHistoryCount++;
+    }
+}
+
+
+String SentinelWeb::createHistoryJSON() {
+
+    String json = "{";
+
+    json += "\"type\":\"history\",";
+
+    json += "\"samples\":[";
+
+    uint8_t count =
+        appState.telemetryHistoryCount;
+
+    uint8_t start = 0;
+
+    if (
+        count ==
+        TELEMETRY_HISTORY_SIZE
+    ) {
+
+        start =
+            appState.telemetryHistoryIndex;
+    }
+
+    for (
+        uint8_t i = 0;
+        i < count;
+        i++
+    ) {
+
+        if (i > 0) {
+
+            json += ",";
+        }
+
+        uint8_t index =
+            (
+                start + i
+            ) %
+            TELEMETRY_HISTORY_SIZE;
+
+        TelemetrySample& sample =
+            appState.telemetryHistory[
+                index
+            ];
+
+        json += "{";
+
+        json +=
+            "\"time\":" +
+            String(
+                sample.timestamp
+            ) +
+            ",";
+
+        json +=
+            "\"ping\":" +
+            String(
+                sample.ping
+            ) +
+            ",";
+
+        json +=
+            "\"rssi\":" +
+            String(
+                sample.rssi
+            ) +
+            ",";
+
+        json +=
+            "\"loss\":" +
+            String(
+                sample.packetLoss
+            ) +
+            ",";
+
+        json +=
+            "\"dns\":" +
+            String(
+                sample.dnsTime
+            );
+
+        json += "}";
+    }
+
+    json += "]}";
 
     return json;
 }
