@@ -5,14 +5,14 @@
 #include <ESP32Ping.h>
 
 // ============================================================
-// WIFI CONFIGURATION
+// CONFIGURATION
 // ============================================================
 
-const char* WIFI_SSID = "Hacked_Ext1";
+const char* WIFI_SSID     = "Hacked_Ext1";
 const char* WIFI_PASSWORD = "OJH_m@23*+#";
 
 // ============================================================
-// OLED CONFIGURATION
+// OLED
 // ============================================================
 
 #define OLED_SDA 8
@@ -30,14 +30,14 @@ Adafruit_SSD1306 display(
 );
 
 // ============================================================
-// JOYSTICK CONFIGURATION
+// JOYSTICK
 // ============================================================
 
-#define JOY_X 4
-#define JOY_Y 5
+#define JOY_X  4
+#define JOY_Y  5
 #define JOY_SW 6
 
-// Measured joystick center
+// Measured center from your joystick
 #define JOY_CENTER_X 1911
 #define JOY_CENTER_Y 1899
 
@@ -49,31 +49,11 @@ Adafruit_SSD1306 display(
 #define JOY_DOWN_THRESHOLD   3300
 
 // ============================================================
-// PAGES
-// ============================================================
-
-enum Page {
-
-  PAGE_DASHBOARD,
-  PAGE_WIFI,
-  PAGE_INTERNET,
-  PAGE_NETWORK,
-  PAGE_SCANNER,
-  PAGE_SYSTEM,
-
-  PAGE_COUNT
-};
-
-volatile int currentPage = PAGE_DASHBOARD;
-
-// ============================================================
 // JOYSTICK STATE
 // ============================================================
 
 enum JoyDirection {
-
   JOY_NONE,
-
   JOY_LEFT,
   JOY_RIGHT,
   JOY_UP,
@@ -82,23 +62,44 @@ enum JoyDirection {
 
 JoyDirection lastDirection = JOY_NONE;
 
-// ============================================================
-// BUTTON STATE
-// ============================================================
-
-bool previousButton = HIGH;
+bool previousButtonState = HIGH;
 
 unsigned long lastButtonTime = 0;
 
 #define BUTTON_DEBOUNCE 200
 
 // ============================================================
-// DISPLAY TIMING
+// APPLICATION STATE
 // ============================================================
 
-unsigned long lastDisplayUpdate = 0;
+enum AppScreen {
+  SCREEN_MENU,
+  SCREEN_DASHBOARD,
+  SCREEN_WIFI,
+  SCREEN_INTERNET,
+  SCREEN_NETWORK,
+  SCREEN_SCANNER,
+  SCREEN_SYSTEM
+};
 
-#define DISPLAY_INTERVAL 150
+AppScreen screen = SCREEN_MENU;
+
+// ============================================================
+// MAIN MENU
+// ============================================================
+
+const char* menuItems[] = {
+  "Dashboard",
+  "WiFi Analyzer",
+  "Internet Test",
+  "LAN Scanner",
+  "Network Info",
+  "System"
+};
+
+const int MENU_COUNT = 6;
+
+int menuSelection = 0;
 
 // ============================================================
 // NETWORK DATA
@@ -149,11 +150,29 @@ struct WiFiNetwork {
   String encryption;
 };
 
-WiFiNetwork networks[15];
+WiFiNetwork networks[20];
 
 volatile int networkCount = 0;
 
 volatile int selectedNetwork = 0;
+
+// ============================================================
+// SYSTEM
+// ============================================================
+
+unsigned long bootTime = 0;
+
+unsigned long lastNetworkCheck = 0;
+
+#define NETWORK_INTERVAL 10000
+
+// ============================================================
+// DISPLAY
+// ============================================================
+
+unsigned long lastDisplayUpdate = 0;
+
+#define DISPLAY_INTERVAL 150
 
 // ============================================================
 // NETWORK TASK
@@ -169,69 +188,58 @@ void performJoystickAction(
   JoyDirection direction
 );
 
-void scanWiFi();
+void processJoystick();
+
+void processButton();
 
 void checkNetwork();
 
-void connectWiFi();
+void scanWiFi();
 
 void drawDisplay();
 
+void openSelectedMenu();
+
+void returnToMenu();
+
 // ============================================================
-// GET JOYSTICK DIRECTION
+// JOYSTICK DIRECTION
 // ============================================================
 
 JoyDirection getJoystickDirection() {
 
   int x = analogRead(JOY_X);
-
   int y = analogRead(JOY_Y);
 
   // ----------------------------------------------------------
-  // LEFT
+  // X AXIS
   // ----------------------------------------------------------
 
   if (x <= JOY_LEFT_THRESHOLD) {
-
     return JOY_LEFT;
   }
 
-  // ----------------------------------------------------------
-  // RIGHT
-  // ----------------------------------------------------------
-
   if (x >= JOY_RIGHT_THRESHOLD) {
-
     return JOY_RIGHT;
   }
 
   // ----------------------------------------------------------
-  // UP
+  // Y AXIS
   // ----------------------------------------------------------
 
   if (y <= JOY_UP_THRESHOLD) {
-
     return JOY_UP;
   }
 
-  // ----------------------------------------------------------
-  // DOWN
-  // ----------------------------------------------------------
-
   if (y >= JOY_DOWN_THRESHOLD) {
-
     return JOY_DOWN;
   }
-
-  // ----------------------------------------------------------
-  // CENTER
-  // ----------------------------------------------------------
 
   return JOY_NONE;
 }
 
 // ============================================================
-// PROCESS JOYSTICK
+// JOYSTICK PROCESSING
 // ============================================================
 
 void processJoystick() {
@@ -240,10 +248,13 @@ void processJoystick() {
     getJoystickDirection();
 
   // ----------------------------------------------------------
-  // CENTER = RE-ARM
+  // CENTER
   // ----------------------------------------------------------
 
   if (direction == JOY_NONE) {
+
+    // Returning to center re-arms
+    // the joystick.
 
     lastDirection = JOY_NONE;
 
@@ -251,7 +262,7 @@ void processJoystick() {
   }
 
   // ----------------------------------------------------------
-  // SAME DIRECTION STILL HELD
+  // SAME EXTREME STILL HELD
   // ----------------------------------------------------------
 
   if (direction == lastDirection) {
@@ -260,7 +271,7 @@ void processJoystick() {
   }
 
   // ----------------------------------------------------------
-  // NEW EXTREME MOVEMENT
+  // NEW EXTREME
   // ----------------------------------------------------------
 
   lastDirection = direction;
@@ -269,65 +280,95 @@ void processJoystick() {
 }
 
 // ============================================================
-// PERFORM JOYSTICK ACTION
+// JOYSTICK ACTION
 // ============================================================
 
 void performJoystickAction(
   JoyDirection direction
 ) {
 
-  switch (direction) {
+  // ==========================================================
+  // MENU
+  // ==========================================================
 
-    // --------------------------------------------------------
-    // LEFT
-    // --------------------------------------------------------
+  if (screen == SCREEN_MENU) {
+
+    switch (direction) {
+
+      case JOY_UP:
+
+        menuSelection--;
+
+        if (menuSelection < 0) {
+          menuSelection =
+            MENU_COUNT - 1;
+        }
+
+        break;
+
+      case JOY_DOWN:
+
+        menuSelection++;
+
+        if (
+          menuSelection >= MENU_COUNT
+        ) {
+          menuSelection = 0;
+        }
+
+        break;
+
+      case JOY_RIGHT:
+
+        openSelectedMenu();
+
+        break;
+
+      case JOY_LEFT:
+
+        // Already at menu
+        break;
+
+      default:
+        break;
+    }
+
+    return;
+  }
+
+  // ==========================================================
+  // INSIDE A SCREEN
+  // ==========================================================
+
+  switch (direction) {
 
     case JOY_LEFT:
 
-      currentPage--;
-
-      if (currentPage < 0) {
-
-        currentPage =
-          PAGE_COUNT - 1;
-      }
-
-      Serial.println(
-        "JOYSTICK -> LEFT"
-      );
+      returnToMenu();
 
       break;
-
-    // --------------------------------------------------------
-    // RIGHT
-    // --------------------------------------------------------
 
     case JOY_RIGHT:
 
-      currentPage++;
+      // RIGHT acts as SELECT/REFRESH
 
       if (
-        currentPage >= PAGE_COUNT
+        screen == SCREEN_SCANNER
       ) {
 
-        currentPage = 0;
+        scanWiFi();
+
+      } else {
+
+        checkNetwork();
       }
 
-      Serial.println(
-        "JOYSTICK -> RIGHT"
-      );
-
       break;
-
-    // --------------------------------------------------------
-    // UP
-    // --------------------------------------------------------
 
     case JOY_UP:
 
       if (
-        currentPage ==
-        PAGE_SCANNER
+        screen == SCREEN_SCANNER
       ) {
 
         if (
@@ -338,21 +379,12 @@ void performJoystickAction(
         }
       }
 
-      Serial.println(
-        "JOYSTICK -> UP"
-      );
-
       break;
-
-    // --------------------------------------------------------
-    // DOWN
-    // --------------------------------------------------------
 
     case JOY_DOWN:
 
       if (
-        currentPage ==
-        PAGE_SCANNER
+        screen == SCREEN_SCANNER
       ) {
 
         if (
@@ -364,99 +396,195 @@ void performJoystickAction(
         }
       }
 
-      Serial.println(
-        "JOYSTICK -> DOWN"
-      );
-
       break;
 
-    // --------------------------------------------------------
-    // NONE
-    // --------------------------------------------------------
-
     default:
-
       break;
   }
 }
 
 // ============================================================
-// PROCESS JOYSTICK BUTTON
+// BUTTON
 // ============================================================
 
 void processButton() {
 
-  bool button =
+  bool currentButton =
     digitalRead(JOY_SW);
 
   unsigned long now =
     millis();
 
   // ----------------------------------------------------------
-  // BUTTON PRESS DETECTION
+  // NEW PRESS
   // ----------------------------------------------------------
 
   if (
-    button == LOW &&
-    previousButton == HIGH &&
-    now - lastButtonTime >
+    currentButton == LOW &&
+    previousButtonState == HIGH &&
+    now - lastButtonTime >=
       BUTTON_DEBOUNCE
   ) {
 
     lastButtonTime = now;
 
     Serial.println(
-      "JOYSTICK -> PRESS"
+      "BUTTON PRESSED"
     );
 
-    // --------------------------------------------------------
-    // WIFI SCANNER
-    // --------------------------------------------------------
-
     if (
-      currentPage ==
-      PAGE_SCANNER
+      screen == SCREEN_MENU
     ) {
 
-      scanWiFi();
-    }
+      openSelectedMenu();
 
-    // --------------------------------------------------------
-    // OTHER PAGES
-    // --------------------------------------------------------
+    } else {
 
-    else {
+      // ------------------------------------------------------
+      // SCREEN ACTION
+      // ------------------------------------------------------
 
-      Serial.println(
-        "Network refresh requested"
-      );
+      if (
+        screen == SCREEN_SCANNER
+      ) {
 
-      // Network task continuously updates
-      // the network information.
+        scanWiFi();
+
+      } else {
+
+        checkNetwork();
+      }
     }
   }
 
-  previousButton = button;
+  previousButtonState =
+    currentButton;
 }
 
 // ============================================================
-// CONNECT TO WIFI
+// OPEN MENU ITEM
+// ============================================================
+
+void openSelectedMenu() {
+
+  switch (menuSelection) {
+
+    case 0:
+
+      screen =
+        SCREEN_DASHBOARD;
+
+      break;
+
+    case 1:
+
+      screen =
+        SCREEN_WIFI;
+
+      break;
+
+    case 2:
+
+      screen =
+        SCREEN_INTERNET;
+
+      break;
+
+    case 3:
+
+      screen =
+        SCREEN_NETWORK;
+
+      break;
+
+    case 4:
+
+      screen =
+        SCREEN_NETWORK;
+
+      break;
+
+    case 5:
+
+      screen =
+        SCREEN_SYSTEM;
+
+      break;
+  }
+
+  // ----------------------------------------------------------
+  // LAN SCANNER
+  // ----------------------------------------------------------
+
+  if (menuSelection == 3) {
+
+    // V5 implementation
+    // will replace this screen.
+
+    screen =
+      SCREEN_NETWORK;
+  }
+
+  Serial.print(
+    "OPEN MENU: "
+  );
+
+  Serial.println(
+    menuItems[menuSelection]
+  );
+}
+
+// ============================================================
+// RETURN TO MENU
+// ============================================================
+
+void returnToMenu() {
+
+  screen =
+    SCREEN_MENU;
+
+  lastDirection =
+    JOY_NONE;
+}
+
+// ============================================================
+// WIFI CONNECTION
 // ============================================================
 
 void connectWiFi() {
 
+  display.clearDisplay();
+
+  display.setTextSize(1);
+
+  display.setTextColor(
+    SSD1306_WHITE
+  );
+
+  display.setCursor(
+    0,
+    0
+  );
+
+  display.println(
+    "NETWORK MONITOR"
+  );
+
+  display.setCursor(
+    0,
+    18
+  );
+
+  display.println(
+    "Connecting WiFi..."
+  );
+
+  display.display();
+
   Serial.println();
 
   Serial.println(
-    "============================"
-  );
-
-  Serial.println(
-    "CONNECTING TO WIFI"
-  );
-
-  Serial.println(
-    "============================"
+    "Connecting to WiFi..."
   );
 
   WiFi.mode(
@@ -484,16 +612,13 @@ void connectWiFi() {
 
   Serial.println();
 
-  // ----------------------------------------------------------
-  // SUCCESS
-  // ----------------------------------------------------------
-
   if (
     WiFi.status() ==
     WL_CONNECTED
   ) {
 
-    wifiConnected = true;
+    wifiConnected =
+      true;
 
     currentSSID =
       WiFi.SSID();
@@ -524,14 +649,6 @@ void connectWiFi() {
     );
 
     Serial.print(
-      "SSID: "
-    );
-
-    Serial.println(
-      currentSSID
-    );
-
-    Serial.print(
       "IP: "
     );
 
@@ -539,38 +656,10 @@ void connectWiFi() {
       localIP
     );
 
-    Serial.print(
-      "Gateway: "
-    );
+  } else {
 
-    Serial.println(
-      gatewayIP
-    );
-
-    Serial.print(
-      "RSSI: "
-    );
-
-    Serial.println(
-      wifiRSSI
-    );
-
-    Serial.print(
-      "Channel: "
-    );
-
-    Serial.println(
-      wifiChannel
-    );
-  }
-
-  // ----------------------------------------------------------
-  // FAILURE
-  // ----------------------------------------------------------
-
-  else {
-
-    wifiConnected = false;
+    wifiConnected =
+      false;
 
     Serial.println(
       "WiFi connection FAILED"
@@ -579,16 +668,18 @@ void connectWiFi() {
 }
 
 // ============================================================
-// PING GATEWAY
+// GATEWAY TEST
 // ============================================================
 
 void pingGateway() {
 
   if (!wifiConnected) {
 
-    gatewayOnline = false;
+    gatewayOnline =
+      false;
 
-    gatewayPing = -1;
+    gatewayPing =
+      -1;
 
     return;
   }
@@ -596,46 +687,55 @@ void pingGateway() {
   bool result =
     Ping.ping(
       gatewayIP,
-      2
+      3
     );
 
   if (result) {
 
-    gatewayOnline = true;
+    gatewayOnline =
+      true;
 
     gatewayPing =
       Ping.averageTime();
 
   } else {
 
-    gatewayOnline = false;
+    gatewayOnline =
+      false;
 
-    gatewayPing = -1;
+    gatewayPing =
+      -1;
   }
 }
 
 // ============================================================
-// INTERNET PING
+// INTERNET TEST
 // ============================================================
 
 void pingInternet() {
 
   if (!wifiConnected) {
 
-    internetOnline = false;
+    internetOnline =
+      false;
 
-    internetPing = -1;
+    internetPing =
+      -1;
 
-    packetLoss = 100;
+    packetLoss =
+      100;
 
     return;
   }
 
-  const int packets = 5;
+  const int packets =
+    10;
 
-  int successful = 0;
+  int successful =
+    0;
 
-  float totalPing = 0;
+  float totalPing =
+    0;
 
   for (
     int i = 0;
@@ -665,23 +765,18 @@ void pingInternet() {
     delay(50);
   }
 
-  // ----------------------------------------------------------
-  // PACKET LOSS
-  // ----------------------------------------------------------
-
   packetLoss =
-    ((packets - successful) * 100)
-    / packets;
-
-  // ----------------------------------------------------------
-  // INTERNET STATUS
-  // ----------------------------------------------------------
+    (
+      (packets - successful)
+      * 100
+    ) / packets;
 
   if (
     successful > 0
   ) {
 
-    internetOnline = true;
+    internetOnline =
+      true;
 
     internetPing =
       totalPing /
@@ -689,9 +784,11 @@ void pingInternet() {
 
   } else {
 
-    internetOnline = false;
+    internetOnline =
+      false;
 
-    internetPing = -1;
+    internetPing =
+      -1;
   }
 }
 
@@ -703,7 +800,8 @@ void testDNS() {
 
   if (!wifiConnected) {
 
-    dnsTime = 0;
+    dnsTime =
+      0;
 
     return;
   }
@@ -726,44 +824,48 @@ void testDNS() {
 
   } else {
 
-    dnsTime = 0;
+    dnsTime =
+      0;
   }
 }
 
 // ============================================================
-// COMPLETE NETWORK CHECK
+// COMPLETE NETWORK TEST
 // ============================================================
 
 void checkNetwork() {
-
-  // ----------------------------------------------------------
-  // WIFI STATUS
-  // ----------------------------------------------------------
 
   if (
     WiFi.status() !=
     WL_CONNECTED
   ) {
 
-    wifiConnected = false;
+    wifiConnected =
+      false;
 
-    gatewayOnline = false;
+    gatewayOnline =
+      false;
 
-    internetOnline = false;
+    internetOnline =
+      false;
 
-    gatewayPing = -1;
+    gatewayPing =
+      -1;
 
-    internetPing = -1;
+    internetPing =
+      -1;
 
-    packetLoss = 100;
+    packetLoss =
+      100;
 
     return;
   }
 
-  wifiConnected = true;
+  wifiConnected =
+    true;
 
   // ----------------------------------------------------------
-  // WIFI INFORMATION
+  // WIFI DATA
   // ----------------------------------------------------------
 
   wifiRSSI =
@@ -771,6 +873,12 @@ void checkNetwork() {
 
   wifiChannel =
     WiFi.channel();
+
+  currentSSID =
+    WiFi.SSID();
+
+  currentBSSID =
+    WiFi.BSSIDstr();
 
   localIP =
     WiFi.localIP();
@@ -784,32 +892,18 @@ void checkNetwork() {
   dnsIP =
     WiFi.dnsIP();
 
-  currentSSID =
-    WiFi.SSID();
-
-  currentBSSID =
-    WiFi.BSSIDstr();
-
   // ----------------------------------------------------------
-  // GATEWAY
+  // TESTS
   // ----------------------------------------------------------
 
   pingGateway();
 
-  // ----------------------------------------------------------
-  // INTERNET
-  // ----------------------------------------------------------
-
   pingInternet();
-
-  // ----------------------------------------------------------
-  // DNS
-  // ----------------------------------------------------------
 
   testDNS();
 
   // ----------------------------------------------------------
-  // SERIAL OUTPUT
+  // SERIAL
   // ----------------------------------------------------------
 
   Serial.println();
@@ -819,13 +913,11 @@ void checkNetwork() {
   );
 
   Serial.print(
-    "WiFi: "
+    "SSID: "
   );
 
   Serial.println(
-    wifiConnected
-      ? "CONNECTED"
-      : "DISCONNECTED"
+    currentSSID
   );
 
   Serial.print(
@@ -916,20 +1008,8 @@ void scanWiFi() {
   Serial.println();
 
   Serial.println(
-    "============================"
+    "========== WIFI SCAN =========="
   );
-
-  Serial.println(
-    "WIFI SCAN"
-  );
-
-  Serial.println(
-    "============================"
-  );
-
-  // ----------------------------------------------------------
-  // OLED SCANNING MESSAGE
-  // ----------------------------------------------------------
 
   display.clearDisplay();
 
@@ -959,10 +1039,6 @@ void scanWiFi() {
 
   display.display();
 
-  // ----------------------------------------------------------
-  // SCAN
-  // ----------------------------------------------------------
-
   int count =
     WiFi.scanNetworks(
       false,
@@ -972,14 +1048,11 @@ void scanWiFi() {
   networkCount =
     min(
       count,
-      15
+      20
     );
 
-  selectedNetwork = 0;
-
-  // ----------------------------------------------------------
-  // STORE RESULTS
-  // ----------------------------------------------------------
+  selectedNetwork =
+    0;
 
   for (
     int i = 0;
@@ -1001,10 +1074,6 @@ void scanWiFi() {
   }
 
   WiFi.scanDelete();
-
-  // ----------------------------------------------------------
-  // SERIAL
-  // ----------------------------------------------------------
 
   Serial.print(
     "Networks found: "
@@ -1083,7 +1152,98 @@ void drawHeader(
 }
 
 // ============================================================
-// DASHBOARD PAGE
+// MENU
+// ============================================================
+
+void drawMenu() {
+
+  display.setTextSize(1);
+
+  display.setTextColor(
+    SSD1306_WHITE
+  );
+
+  display.setCursor(
+    0,
+    0
+  );
+
+  display.println(
+    "NETWORK MONITOR"
+  );
+
+  display.drawLine(
+    0,
+    9,
+    127,
+    9,
+    SSD1306_WHITE
+  );
+
+  // ----------------------------------------------------------
+  // Show 5 items around selection
+  // ----------------------------------------------------------
+
+  int start =
+    menuSelection - 2;
+
+  if (start < 0) {
+    start = 0;
+  }
+
+  if (
+    start >
+    MENU_COUNT - 5
+  ) {
+
+    start =
+      max(
+        0,
+        MENU_COUNT - 5
+      );
+  }
+
+  for (
+    int i = 0;
+    i < 5 &&
+    start + i < MENU_COUNT;
+    i++
+  ) {
+
+    int index =
+      start + i;
+
+    int y =
+      14 + (i * 10);
+
+    display.setCursor(
+      0,
+      y
+    );
+
+    if (
+      index == menuSelection
+    ) {
+
+      display.print(
+        ">"
+      );
+
+    } else {
+
+      display.print(
+        " "
+      );
+    }
+
+    display.print(
+      menuItems[index]
+    );
+  }
+}
+
+// ============================================================
+// DASHBOARD
 // ============================================================
 
 void drawDashboard() {
@@ -1092,17 +1252,13 @@ void drawDashboard() {
     "DASHBOARD"
   );
 
-  // ----------------------------------------------------------
-  // INTERNET STATUS
-  // ----------------------------------------------------------
-
   display.setCursor(
     0,
     13
   );
 
   display.print(
-    "NET "
+    "NET: "
   );
 
   display.println(
@@ -1111,17 +1267,13 @@ void drawDashboard() {
       : "OFFLINE"
   );
 
-  // ----------------------------------------------------------
-  // PING
-  // ----------------------------------------------------------
-
   display.setCursor(
     0,
     25
   );
 
   display.print(
-    "PING "
+    "PING: "
   );
 
   if (
@@ -1143,17 +1295,13 @@ void drawDashboard() {
     );
   }
 
-  // ----------------------------------------------------------
-  // PACKET LOSS
-  // ----------------------------------------------------------
-
   display.setCursor(
     0,
     37
   );
 
   display.print(
-    "LOSS "
+    "LOSS: "
   );
 
   display.print(
@@ -1164,17 +1312,13 @@ void drawDashboard() {
     "%"
   );
 
-  // ----------------------------------------------------------
-  // RSSI
-  // ----------------------------------------------------------
-
   display.setCursor(
     0,
     49
   );
 
   display.print(
-    "RSSI "
+    "RSSI: "
   );
 
   display.print(
@@ -1187,16 +1331,14 @@ void drawDashboard() {
 }
 
 // ============================================================
-// WIFI PAGE
+// WIFI SCREEN
 // ============================================================
 
-void drawWiFiPage() {
+void drawWiFiScreen() {
 
   drawHeader(
     "WIFI"
   );
-
-  // SSID
 
   display.setCursor(
     0,
@@ -1204,14 +1346,12 @@ void drawWiFiPage() {
   );
 
   display.print(
-    "SSID:"
+    "SSID: "
   );
 
   display.println(
     currentSSID
   );
-
-  // RSSI
 
   display.setCursor(
     0,
@@ -1219,7 +1359,7 @@ void drawWiFiPage() {
   );
 
   display.print(
-    "RSSI:"
+    "RSSI: "
   );
 
   display.print(
@@ -1230,22 +1370,18 @@ void drawWiFiPage() {
     "dBm"
   );
 
-  // CHANNEL
-
   display.setCursor(
     0,
     39
   );
 
   display.print(
-    "CHANNEL:"
+    "CH: "
   );
 
   display.println(
     wifiChannel
   );
-
-  // BSSID
 
   display.setCursor(
     0,
@@ -1276,16 +1412,14 @@ void drawWiFiPage() {
 }
 
 // ============================================================
-// INTERNET PAGE
+// INTERNET SCREEN
 // ============================================================
 
-void drawInternetPage() {
+void drawInternetScreen() {
 
   drawHeader(
-    "INTERNET"
+    "INTERNET TEST"
   );
-
-  // GATEWAY
 
   display.setCursor(
     0,
@@ -1293,12 +1427,10 @@ void drawInternetPage() {
   );
 
   display.print(
-    "GW "
+    "GW: "
   );
 
-  if (
-    gatewayOnline
-  ) {
+  if (gatewayOnline) {
 
     display.print(
       (int)gatewayPing
@@ -1315,20 +1447,16 @@ void drawInternetPage() {
     );
   }
 
-  // INTERNET
-
   display.setCursor(
     0,
     27
   );
 
   display.print(
-    "NET "
+    "NET: "
   );
 
-  if (
-    internetOnline
-  ) {
+  if (internetOnline) {
 
     display.print(
       (int)internetPing
@@ -1345,20 +1473,16 @@ void drawInternetPage() {
     );
   }
 
-  // DNS
-
   display.setCursor(
     0,
     41
   );
 
   display.print(
-    "DNS "
+    "DNS: "
   );
 
-  if (
-    dnsTime > 0
-  ) {
+  if (dnsTime > 0) {
 
     display.print(
       dnsTime
@@ -1375,15 +1499,13 @@ void drawInternetPage() {
     );
   }
 
-  // LOSS
-
   display.setCursor(
     0,
     55
   );
 
   display.print(
-    "LOSS "
+    "LOSS: "
   );
 
   display.print(
@@ -1396,16 +1518,14 @@ void drawInternetPage() {
 }
 
 // ============================================================
-// NETWORK PAGE
+// NETWORK SCREEN
 // ============================================================
 
-void drawNetworkPage() {
+void drawNetworkScreen() {
 
   drawHeader(
-    "NETWORK"
+    "NETWORK INFO"
   );
-
-  // IP
 
   display.setCursor(
     0,
@@ -1420,8 +1540,6 @@ void drawNetworkPage() {
     localIP
   );
 
-  // GATEWAY
-
   display.setCursor(
     0,
     26
@@ -1435,8 +1553,6 @@ void drawNetworkPage() {
     gatewayIP
   );
 
-  // MASK
-
   display.setCursor(
     0,
     39
@@ -1449,8 +1565,6 @@ void drawNetworkPage() {
   display.println(
     subnetMask
   );
-
-  // DNS
 
   display.setCursor(
     0,
@@ -1467,18 +1581,14 @@ void drawNetworkPage() {
 }
 
 // ============================================================
-// WIFI SCANNER PAGE
+// WIFI SCANNER SCREEN
 // ============================================================
 
-void drawScannerPage() {
+void drawScannerScreen() {
 
   drawHeader(
-    "WIFI SCANNER"
+    "WIFI ANALYZER"
   );
-
-  // ----------------------------------------------------------
-  // NO RESULTS
-  // ----------------------------------------------------------
 
   if (
     networkCount == 0
@@ -1505,16 +1615,10 @@ void drawScannerPage() {
     return;
   }
 
-  // ----------------------------------------------------------
-  // CURRENT NETWORK
-  // ----------------------------------------------------------
-
   WiFiNetwork& n =
     networks[
       selectedNetwork
     ];
-
-  // NUMBER
 
   display.setCursor(
     0,
@@ -1533,8 +1637,6 @@ void drawScannerPage() {
     networkCount
   );
 
-  // SSID
-
   display.setCursor(
     0,
     26
@@ -1543,8 +1645,6 @@ void drawScannerPage() {
   display.println(
     n.ssid
   );
-
-  // RSSI + CHANNEL
 
   display.setCursor(
     0,
@@ -1563,8 +1663,6 @@ void drawScannerPage() {
     n.channel
   );
 
-  // ACTION
-
   display.setCursor(
     0,
     52
@@ -1576,18 +1674,14 @@ void drawScannerPage() {
 }
 
 // ============================================================
-// SYSTEM PAGE
+// SYSTEM SCREEN
 // ============================================================
 
-void drawSystemPage() {
+void drawSystemScreen() {
 
   drawHeader(
     "SYSTEM"
   );
-
-  // ----------------------------------------------------------
-  // UPTIME
-  // ----------------------------------------------------------
 
   unsigned long uptime =
     millis() / 1000;
@@ -1613,10 +1707,6 @@ void drawSystemPage() {
     seconds
   );
 
-  // ----------------------------------------------------------
-  // RAM
-  // ----------------------------------------------------------
-
   display.setCursor(
     0,
     27
@@ -1635,10 +1725,6 @@ void drawSystemPage() {
     "KB"
   );
 
-  // ----------------------------------------------------------
-  // CPU
-  // ----------------------------------------------------------
-
   display.setCursor(
     0,
     41
@@ -1656,10 +1742,6 @@ void drawSystemPage() {
     "MHz"
   );
 
-  // ----------------------------------------------------------
-  // RSSI
-  // ----------------------------------------------------------
-
   display.setCursor(
     0,
     55
@@ -1672,10 +1754,6 @@ void drawSystemPage() {
   display.print(
     wifiRSSI
   );
-
-  display.println(
-    "dBm"
-  );
 }
 
 // ============================================================
@@ -1686,43 +1764,47 @@ void drawDisplay() {
 
   display.clearDisplay();
 
-  switch (
-    currentPage
-  ) {
+  switch (screen) {
 
-    case PAGE_DASHBOARD:
+    case SCREEN_MENU:
+
+      drawMenu();
+
+      break;
+
+    case SCREEN_DASHBOARD:
 
       drawDashboard();
 
       break;
 
-    case PAGE_WIFI:
+    case SCREEN_WIFI:
 
-      drawWiFiPage();
-
-      break;
-
-    case PAGE_INTERNET:
-
-      drawInternetPage();
+      drawWiFiScreen();
 
       break;
 
-    case PAGE_NETWORK:
+    case SCREEN_INTERNET:
 
-      drawNetworkPage();
-
-      break;
-
-    case PAGE_SCANNER:
-
-      drawScannerPage();
+      drawInternetScreen();
 
       break;
 
-    case PAGE_SYSTEM:
+    case SCREEN_NETWORK:
 
-      drawSystemPage();
+      drawNetworkScreen();
+
+      break;
+
+    case SCREEN_SCANNER:
+
+      drawScannerScreen();
+
+      break;
+
+    case SCREEN_SYSTEM:
+
+      drawSystemScreen();
 
       break;
   }
@@ -1746,12 +1828,9 @@ void networkTask(
 
     checkNetwork();
 
-    // Wait 5 seconds before
-    // next network measurement.
-
     vTaskDelay(
       pdMS_TO_TICKS(
-        5000
+        NETWORK_INTERVAL
       )
     );
   }
@@ -1769,18 +1848,21 @@ void setup() {
 
   delay(500);
 
+  bootTime =
+    millis();
+
   Serial.println();
 
   Serial.println(
-    "============================"
+    "================================"
   );
 
   Serial.println(
-    "ESP32-S3 NETWORK MONITOR"
+    "ESP32-S3 NETWORK MONITOR V4"
   );
 
   Serial.println(
-    "============================"
+    "================================"
   );
 
   // ----------------------------------------------------------
@@ -1801,17 +1883,13 @@ void setup() {
   );
 
   // ----------------------------------------------------------
-  // OLED I2C
+  // OLED
   // ----------------------------------------------------------
 
   Wire.begin(
     OLED_SDA,
     OLED_SCL
   );
-
-  // ----------------------------------------------------------
-  // OLED INITIALIZATION
-  // ----------------------------------------------------------
 
   if (
     !display.begin(
@@ -1830,17 +1908,13 @@ void setup() {
     }
   }
 
-  // ----------------------------------------------------------
-  // START SCREEN
-  // ----------------------------------------------------------
-
   display.clearDisplay();
+
+  display.setTextSize(1);
 
   display.setTextColor(
     SSD1306_WHITE
   );
-
-  display.setTextSize(1);
 
   display.setCursor(
     0,
@@ -1857,7 +1931,7 @@ void setup() {
   );
 
   display.println(
-    "Starting..."
+    "Initializing..."
   );
 
   display.display();
@@ -1873,7 +1947,13 @@ void setup() {
   delay(500);
 
   // ----------------------------------------------------------
-  // CREATE NETWORK TASK
+  // FIRST NETWORK CHECK
+  // ----------------------------------------------------------
+
+  checkNetwork();
+
+  // ----------------------------------------------------------
+  // NETWORK TASK
   // ----------------------------------------------------------
 
   xTaskCreatePinnedToCore(
@@ -1893,21 +1973,33 @@ void setup() {
     0
   );
 
+  // ----------------------------------------------------------
+  // START MENU
+  // ----------------------------------------------------------
+
+  screen =
+    SCREEN_MENU;
+
+  menuSelection =
+    0;
+
+  drawDisplay();
+
   Serial.println();
 
   Serial.println(
-    "System ready!"
+    "SYSTEM READY"
   );
 }
 
 // ============================================================
-// MAIN LOOP
+// LOOP
 // ============================================================
 
 void loop() {
 
   // ----------------------------------------------------------
-  // JOYSTICK
+  // INPUT
   // ----------------------------------------------------------
 
   processJoystick();
@@ -1931,7 +2023,7 @@ void loop() {
   }
 
   // ----------------------------------------------------------
-  // SMALL YIELD
+  // YIELD
   // ----------------------------------------------------------
 
   delay(5);
