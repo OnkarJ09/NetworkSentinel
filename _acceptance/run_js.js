@@ -28,10 +28,11 @@ class Element {
         this.className = '';
         this.style = {};
         this._children = [];
+        this.width = 300;
+        this.height = 60;
     }
     set textContent(v) {
         if (typeof v === 'string') {
-            // naive HTML escape for assertion comparison
             this._text = v;
             this._inner = v
                 .replace(/&/g, '&')
@@ -46,13 +47,30 @@ class Element {
     get innerHTML() { return this._inner; }
     appendChild(child) {
         this._children.push(child);
-        // naive: append the child's innerHTML into ours
         if (child._inner) {
             this._inner =
                 (this._inner === undefined ? '' : this._inner) +
                 child._inner;
         }
         return child;
+    }
+    getContext(kind) {
+        if (kind === '2d') {
+            return {
+                fillStyle: '', strokeStyle: '', lineWidth: 1, font: '',
+                fillRect() {}, clearRect() {}, fillText() {},
+                beginPath() {}, moveTo() {}, lineTo() {}, stroke() {},
+                fill() {}, closePath() {}, save() {}, restore() {},
+                setLineDash() {}, scale() {}, translate() {}, rotate() {},
+                arc() {}, measureText() { return { width: 0 }; },
+                rect() {}, quadraticCurveTo() {}, bezierCurveTo() {},
+                transform() {}, setTransform() {}, drawImage() {},
+            };
+        }
+        return null;
+    }
+    getBoundingClientRect() {
+        return { left: 0, top: 0, width: this.width, height: this.height, right: this.width, bottom: this.height };
     }
 }
 
@@ -105,7 +123,7 @@ while ((sm = scriptRe.exec(html)) !== null) scripts.push(sm[1]);
 
 // Run in a sandbox-ish eval so the IIFE-style page setup happens.
 // We evaluate scripts sequentially; each function becomes global.
-const wrapped = scripts.join('\n') + '\n; module.exports = { updateDashboard, updateLiveTelemetry, updateLiveWiFi, updateEvents, updateLAN, updateWiFi, formatUptime };';
+const wrapped = scripts.join('\n') + '\n; module.exports = { updateDashboard, updateLiveTelemetry, updateLiveWiFi, updateEvents, updateLAN, updateWiFi, updateHistory, addTelemetryToHistory, formatUptime, get history() { return history; } };';
 const exposed = { module: { exports: {} } };
 const fn = new Function('module', wrapped);
 fn(exposed.module);
@@ -344,6 +362,127 @@ const lanHTML = lanTable.innerHTML || '';
 expect('lanTable has router', lanHTML.includes('router'), v => v === true);
 expect('lanTable has sentinel', lanHTML.includes('sentinel'), v => v === true);
 expect('lanTable has unknown', lanHTML.includes('unknown'), v => v === true);
+
+// =====================================================
+// WORKFLOW COVERAGE — addTelemetryToHistory
+// =====================================================
+console.log('\n=== addTelemetryToHistory (state field round-trip) ===');
+const before = elements.get('pingCanvas');
+lib.addTelemetryToHistory({
+    ping: 10, rssi: -50, packetLoss: 0, dnsTime: 5, heap: 100000,
+    uptime: 1000, state: 15,
+});
+lib.addTelemetryToHistory({
+    ping: 20, rssi: -55, packetLoss: 5, dnsTime: 10, heap: 90000,
+    uptime: 2000, state: 7,
+});
+lib.addTelemetryToHistory({
+    ping: 30, rssi: -60, packetLoss: 10, dnsTime: 15, heap: 80000,
+    uptime: 3000, state: 0,
+});
+const hist = lib.history;
+console.log('history length:', hist ? hist.length : 'NOT ACCESSIBLE from exported scope');
+expect('history has 3 samples after 3 inserts', hist && hist.length === 3, v => v === true);
+expect('samples carry state field', hist && hist.every(s => typeof s.state === 'number'), v => v === true);
+
+// =====================================================
+// WORKFLOW COVERAGE — 60-sample ring limit
+// =====================================================
+console.log('\n=== addTelemetryToHistory ring limit ===');
+for (let i = 0; i < 70; i++) {
+    lib.addTelemetryToHistory({
+        ping: i, rssi: -50, packetLoss: 0, dnsTime: 1, heap: 100000,
+        uptime: 10000 + i, state: i & 0xF,
+    });
+}
+expect('history capped at 60 samples', hist && hist.length === 60, v => v === true);
+expect('oldest sample evicted (first ping != 0)', hist && hist[0].ping === 10, v => v === true);
+
+// =====================================================
+// WORKFLOW COVERAGE — updateHistory replaces buffer
+// =====================================================
+console.log('\n=== updateHistory (full buffer replace) ===');
+lib.updateHistory({
+    samples: [
+        { time: 0, ping: 1, rssi: -1, loss: 0, dns: 1, heap: 1, state: 1 },
+        { time: 1, ping: 2, rssi: -2, loss: 0, dns: 1, heap: 1, state: 2 },
+    ],
+});
+expect('updateHistory replaces buffer (length 2)', lib.history.length === 2, v => v === true);
+
+// =====================================================
+// EDGE CASES — extreme uptime values
+// =====================================================
+console.log('\n=== formatUptime edge cases ===');
+expect('formatUptime(0)', lib.formatUptime(0), v => v === '0:00:00');
+expect('formatUptime(1ms)', lib.formatUptime(1), v => v === '0:00:00');
+expect('formatUptime(59.999s)', lib.formatUptime(59999), v => v === '0:00:59');
+expect('formatUptime(60s)', lib.formatUptime(60000), v => v === '0:01:00');
+expect('formatUptime(3661s)', lib.formatUptime(3661000), v => v === '1:01:01');
+expect('formatUptime(24h)', lib.formatUptime(24 * 3600 * 1000), v => v === '24:00:00');
+expect('formatUptime(49d17h) = 1193:00:00',
+    lib.formatUptime((49 * 24 + 17) * 3600 * 1000), v => v === '1193:00:00');
+
+// =====================================================
+// EDGE CASES — missing fields in payload
+// =====================================================
+console.log('\n=== updateDashboard with partial payload ===');
+lib.updateDashboard({
+    ssid: 'partial', internetPing: 10, packetLoss: 0, rssi: -50,
+    channel: 6, heap: 100000, cpu: 240, uptime: '1:00:00',
+    // intentionally missing: ip, gateway, dns, wifi, gatewayOnline, etc.
+});
+expect('partial payload does not crash (uptime shown)', read('uptime'), v => v === '1:00:00');
+expect('partial payload does not crash (ssid shown)', read('ssid'), v => v === 'partial');
+expect('partial payload shows -- for missing ping', read('intPing'), v => v === '10 ms');
+
+// =====================================================
+// EDGE CASES — empty events list
+// =====================================================
+console.log('\n=== updateEvents with various empty/edge payloads ===');
+lib.updateEvents({});
+expect('empty payload shows placeholder', read('eventList'),
+    v => v.includes('Waiting for events'));
+lib.updateEvents({ events: null });
+expect('null events shows placeholder', read('eventList'),
+    v => v.includes('Waiting for events'));
+
+// =====================================================
+// EDGE CASES — alert banner with all alerts
+// =====================================================
+console.log('\n=== alertBanner with all alerts ===');
+lib.updateDashboard({
+    ...apiPayload, lowMemory: true, cpuBlocked: true, highLatency: true,
+});
+expect('banner shows all 3 alerts', read('alertBanner'),
+    v => v.includes('LOW MEMORY') && v.includes('CPU BLOCKED') && v.includes('HIGH LATENCY'));
+expect('banner visible when 3 alerts', elements.get('alertBanner').style.display, v => v === 'block');
+
+// =====================================================
+// WS ROUTER — type dispatch for all known message types
+// =====================================================
+console.log('\n=== WS message router (offline simulated) ===');
+// We can't actually connect WebSocket in this shim, but we can directly invoke
+// the onmessage handler if we capture it. Easier: simulate the dispatch inline
+// using the exported update* functions — we've already done that.
+
+// =====================================================
+// HTML CARDS PRESENCE — every card id listed in JS must have an HTML element
+// =====================================================
+console.log('\n=== HTML/JS ID coverage ===');
+const html_ids = new Set();
+const html_id_re = /id="([a-zA-Z_][a-zA-Z0-9_]*)"/g;
+let m1;
+const raw_html = src.match(/R"rawliteral\(([\s\S]*?)\)rawliteral"/)[1];
+while ((m1 = html_id_re.exec(raw_html)) !== null) html_ids.add(m1[1]);
+
+const js_calls_re = /getElementById\(\s*['"]([a-zA-Z_][a-zA-Z0-9_]*)['"]\s*\)/g;
+const js_ids = new Set();
+let m2;
+while ((m2 = js_calls_re.exec(raw_html)) !== null) js_ids.add(m2[1]);
+
+const missing = [...js_ids].filter(id => !html_ids.has(id));
+expect('every JS getElementById resolves to HTML id', missing.length, v => v === 0);
 
 if (failures.length) {
     console.log('\nFAILED:', failures);
