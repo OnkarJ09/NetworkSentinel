@@ -2046,7 +2046,7 @@ function updateLiveTelemetry(
         "heap"
     ).textContent =
         Math.round(
-            data.heap / 1024
+            data.heap
         ) +
         " KB";
 
@@ -3057,7 +3057,7 @@ String SentinelWeb::createTelemetryJSON() {
     json +=
         "\"heap\":" +
         String(
-            ESP.getFreeHeap()
+            ESP.getFreeHeap() / 1024
         ) +
         ",";
 

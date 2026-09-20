@@ -1,0 +1,11 @@
+feat: Create button module with Buttons.h and Buttons.cpp implementing debounced digital button control
+
+Changes made:
+- Created Buttons.h with ButtonId enum (BUTTON_UP, BUTTON_DOWN, BUTTON_BACK, BUTTON_OK)
+- Created Buttons.cpp with debouncing implementation (25ms debounce, LONG_PRESS_MS = 1000ms)
+- Added begin() method to initialize pins with INPUT_PULLUP
+- Added update() method with debouncing logic and long press detection
+- Implemented wasPressed(), wasLongPressed(), and isHeld() methods
+- Used proper button state tracking with lastState, stableState, and timing
+
+Files created: Buttons.h, Buttons.cpp
