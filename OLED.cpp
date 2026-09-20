@@ -105,6 +105,73 @@ void OLED::update() {
 }
 
 // ============================================================
+// SPARKLINE
+// ============================================================
+
+void OLED::sparkline(
+    int x,
+    int y,
+    int width,
+    int height,
+    const float* data,
+    int count,
+    float minVal,
+    float maxVal
+) {
+
+    if (count <= 0 || width <= 0 || height <= 0) {
+        return;
+    }
+
+    float range = maxVal - minVal;
+    if (range <= 0.0f) {
+        range = 1.0f;
+    }
+
+    float stepX = (float)width / (float)count;
+
+    int prevPx = x;
+    int prevPy = y + height - 1;
+
+    for (int i = 0; i < count; i++) {
+
+        float v = data[i];
+        if (v < minVal) v = minVal;
+        if (v > maxVal) v = maxVal;
+
+        float normalized = (v - minVal) / range;
+
+        int px = x + (int)(i * stepX);
+        if (px >= x + width) {
+            px = x + width - 1;
+        }
+
+        int py = y + (height - 1) - (int)(normalized * (height - 1));
+        if (py < y) py = y;
+        if (py >= y + height) py = y + height - 1;
+
+        if (i == 0) {
+            display.drawPixel(
+                px,
+                py,
+                SSD1306_WHITE
+            );
+        } else {
+            display.drawLine(
+                prevPx,
+                prevPy,
+                px,
+                py,
+                SSD1306_WHITE
+            );
+        }
+
+        prevPx = px;
+        prevPy = py;
+    }
+}
+
+// ============================================================
 // RAW
 // ============================================================
 

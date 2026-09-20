@@ -21,7 +21,17 @@ else
 fi
 echo
 
-echo "[2/3] JavaScript harness (Node)"
+echo "[2/4] C++ symbol-resolution check (declared vs defined methods)"
+echo "------------------------------------------"
+if bash ./cpp_symbol_check.sh; then
+    echo ">>> C++ symbols: PASS"
+else
+    echo ">>> C++ symbols: FAIL"
+    FAIL=1
+fi
+echo
+
+echo "[3/4] JavaScript harness (Node)"
 echo "------------------------------------------"
 if node run_js.js; then
     echo ">>> JS harness: PASS"
@@ -31,7 +41,7 @@ else
 fi
 echo
 
-echo "[3/3] WS JSON shape cross-check (Node)"
+echo "[4/4] WS JSON shape cross-check (Node)"
 echo "------------------------------------------"
 if node check_ws_shape.js; then
     echo ">>> WS shape: PASS"
