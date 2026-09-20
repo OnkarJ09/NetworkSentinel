@@ -57,6 +57,9 @@ struct LANScannerState {
 
     bool scanning = false;
 
+    // Indicates whether an automatic periodic scan is scheduled/running
+    bool autoScanning = false;
+
     bool scanComplete = false;
 
     uint32_t lastScan = 0;
@@ -130,6 +133,8 @@ struct TelemetrySample {
     uint8_t packetLoss;
 
     uint32_t dnsTime;
+
+    uint32_t heap;
 };
 
 // ============================================================
@@ -200,6 +205,24 @@ struct NetworkState {
 };
 
 // ============================================================
+// SYSTEM METRICS & ALERTS
+// ============================================================
+
+struct SystemAlerts {
+    bool lowMemory = false;
+    bool cpuBlocked = false;
+    bool highLatency = false;
+};
+
+struct SystemMetrics {
+    uint32_t loopTimeMs = 0;
+    uint32_t maxLoopTimeMs = 0;
+    uint32_t minFreeHeap = 0;
+    int8_t wifiTxPower = 0;
+    SystemAlerts alerts;
+};
+
+// ============================================================
 // APPLICATION STATE
 // ============================================================
 
@@ -220,6 +243,8 @@ struct AppState {
     uint32_t lastNetworkUpdate = 0;
 
     bool networkTestRunning = false;
+
+    SystemMetrics system;
 };
 
 extern AppState appState;

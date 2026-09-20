@@ -24,6 +24,17 @@ public:
 
     void update();
 
+    void sparkline(
+        int x,
+        int y,
+        int width,
+        int height,
+        const float* data,
+        int count,
+        float minVal,
+        float maxVal
+    );
+
     Adafruit_SSD1306& raw();
 
 private:

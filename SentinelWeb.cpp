@@ -1,3 +1,4 @@
+#include "config.h"
 #include "SentinelWeb.h"
 #include "AppState.h"
 #include "NetworkManager.h"
@@ -394,6 +395,9 @@ CONNECTING
 
 <main>
 
+<div id="alertBanner" style="display:none; background: #e74c3c; color: white; padding: 10px; margin-bottom: 20px; border-radius: 8px; font-weight: bold; text-align: center;"></div>
+
+
 <section id="dashboard">
 
 <h1>
@@ -751,6 +755,11 @@ Progress
 
 </div>
 
+<div class="card">
+    <div class="card-title">Auto-Scan Status</div>
+    <div id="lanAutoStatus" class="value">--</div>
+</div>
+
 <div class="card" style="margin-bottom: 16px;">
 
 <button
@@ -929,20 +938,44 @@ CPU
 </div>
 
 <div class="card">
-
 <div class="card-title">
 Uptime
 </div>
-
 <div
     id="uptime"
     class="value"
 >
 --
 </div>
-
+</div>
+<div class="card">
+<div class="card-title">
+System Load
+</div>
+<div id="loopTime" class="value">
+--
+</div>
+</div>
+<div class="card">
+<div class="card-title">
+WiFi Power
+</div>
+<div id="wifiPower" class="value">
+--
+</div>
+</div>
 </div>
 
+<h2 style="margin-top: 32px;">
+System History
+</h2>
+<div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+<div class="card">
+<canvas
+    id="memoryCanvas"
+    style="width: 100%; height: 200px;"
+></canvas>
+</div>
 </div>
 
 </section>
@@ -1214,6 +1247,22 @@ function updateLAN(
         data.totalHosts > 0
             ? data.scannedHosts + "/" + data.totalHosts
             : "--";
+
+    // Update auto-scan status
+    const autoStatusEl = document.getElementById("lanAutoStatus");
+    if (data.autoScanning) {
+        if (data.scanning) {
+            autoStatusEl.textContent = "SCANNING";
+            autoStatusEl.className = "value";
+        } else {
+            const seconds = Math.max(0, Math.round(data.timeToNextScan / 1000));
+            autoStatusEl.textContent = seconds > 0 ? `WAIT ${seconds}s` : "IDLE";
+            autoStatusEl.className = seconds > 0 ? "value" : "value ok";
+        }
+    } else {
+        autoStatusEl.textContent = "MANUAL";
+        autoStatusEl.className = "value";
+    }
 
     const table =
         document.getElementById(
@@ -1657,7 +1706,8 @@ function addTelemetryToHistory(data) {
         ping: data.ping,
         rssi: data.rssi,
         loss: data.packetLoss,
-        dns: data.dnsTime
+        dns: data.dnsTime,
+        heap: data.heap
     });
 
     // Maintain 60-sample limit
@@ -1709,6 +1759,15 @@ function drawAllGraphs() {
         500,
         "ms",
         "DNS"
+    );
+
+    drawGraph(
+        "memoryCanvas",
+        history.map(s => s.heap ? s.heap : 0),
+        0,
+        300,
+        "KB",
+        "Free Heap"
     );
 }
 
@@ -2632,6 +2691,41 @@ String SentinelWeb::createJSON() {
         ) +
         ",";
 
+    json +=
+        "\"loopTimeMs\":" +
+        String(appState.system.loopTimeMs) +
+        ",";
+
+    json +=
+        "\"maxLoopTimeMs\":" +
+        String(appState.system.maxLoopTimeMs) +
+        ",";
+
+    json +=
+        "\"minFreeHeap\":" +
+        String(appState.system.minFreeHeap) +
+        ",";
+
+    json +=
+        "\"wifiTxPower\":" +
+        String(appState.system.wifiTxPower) +
+        ",";
+
+    json +=
+        "\"lowMemory\":" +
+        String(appState.system.alerts.lowMemory ? "true" : "false") +
+        ",";
+
+    json +=
+        "\"cpuBlocked\":" +
+        String(appState.system.alerts.cpuBlocked ? "true" : "false") +
+        ",";
+
+    json +=
+        "\"highLatency\":" +
+        String(appState.system.alerts.highLatency ? "true" : "false") +
+        ",";
+
     char uptimeString[20];
 
     snprintf(
@@ -2794,6 +2888,9 @@ void SentinelWeb::recordTelemetry() {
     sample.dnsTime =
         appState.network.dnsTime;
 
+    sample.heap =
+        ESP.getFreeHeap() / 1024;
+
     appState.telemetryHistoryIndex++;
 
     if (
@@ -2892,6 +2989,13 @@ String SentinelWeb::createHistoryJSON() {
             "\"dns\":" +
             String(
                 sample.dnsTime
+            ) +
+            ",";
+
+        json +=
+            "\"heap\":" +
+            String(
+                sample.heap
             );
 
         json += "}";
@@ -2968,6 +3072,27 @@ String SentinelWeb::createLANJSON() {
     json +=
         "\"deviceCount\":" +
         String(scanner.deviceCount) +
+        ",";
+
+    json +=
+        "\"autoScanning\":" +
+        String(
+            scanner.autoScanning
+                ? "true"
+                : "false"
+        ) +
+        ",";
+
+    uint32_t timeToNext = 0;
+    if (!scanner.scanning) {
+        int32_t elapsed = millis() - scanner.lastScan;
+        if (elapsed < LAN_SCAN_INTERVAL_MS) {
+            timeToNext = LAN_SCAN_INTERVAL_MS - elapsed;
+        }
+    }
+    json +=
+        "\"timeToNextScan\":" +
+        String(timeToNext) +
         ",";
 
     json += "\"devices\":[";

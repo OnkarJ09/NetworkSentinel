@@ -114,6 +114,16 @@ void drawDashboard() {
         ) + "dBm"
     );
 
+    // RSSI Sparkline
+    if (appState.telemetryHistoryCount > 0) {
+        float rssiData[TELEMETRY_HISTORY_SIZE];
+        for (int i = 0; i < appState.telemetryHistoryCount; i++) {
+            int idx = (appState.telemetryHistoryIndex - 1 - i + TELEMETRY_HISTORY_SIZE) % TELEMETRY_HISTORY_SIZE;
+            rssiData[i] = (float)appState.telemetryHistory[idx].rssi;
+        }
+        oled.sparkline(70, 45, 55, 15, rssiData, appState.telemetryHistoryCount, -100, -20);
+    }
+
     oled.update();
 }
 
@@ -974,6 +984,8 @@ void setup() {
 
 void loop() {
 
+    uint32_t loopStart = millis();
+
     // -------------------------------------------------------
     // Web Update
     // -------------------------------------------------------
@@ -1194,8 +1206,7 @@ void loop() {
     // DISPLAY
     // --------------------------------------------------------
 
-    static uint32_t lastDisplay =
-        0;
+    static uint32_t lastDisplay = 0;
 
     if (
         millis() -
@@ -1210,4 +1221,13 @@ void loop() {
     }
 
     delay(5);
+
+    uint32_t loopTime = millis() - loopStart;
+    appState.system.loopTimeMs = loopTime;
+    
+    if (loopTime > appState.system.maxLoopTimeMs) {
+        appState.system.maxLoopTimeMs = loopTime;
+    }
+
+    appState.system.minFreeHeap = ESP.getMinFreeHeap();
 }
