@@ -21,12 +21,22 @@ else
 fi
 echo
 
-echo "[2/2] JavaScript harness (Node)"
+echo "[2/3] JavaScript harness (Node)"
 echo "------------------------------------------"
 if node run_js.js; then
     echo ">>> JS harness: PASS"
 else
     echo ">>> JS harness: FAIL"
+    FAIL=1
+fi
+echo
+
+echo "[3/3] WS JSON shape cross-check (Node)"
+echo "------------------------------------------"
+if node check_ws_shape.js; then
+    echo ">>> WS shape: PASS"
+else
+    echo ">>> WS shape: FAIL"
     FAIL=1
 fi
 echo
