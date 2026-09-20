@@ -2,7 +2,7 @@
 
 #include "AppState.h"
 
-#include "Joystick.h"
+#include "Buttons.h"
 
 #include "OLED.h"
 #include "Menu.h"
@@ -14,7 +14,7 @@
 // OBJECTS
 // ============================================================
 
-Joystick joystick;
+Buttons buttons;
 
 int selectedAP = 0;
 
@@ -563,7 +563,6 @@ void drawSystem() {
 // DRAW CURRENT SCREEN
 // ============================================================
 
-
 void drawWiFiStatistics() {
 
     oled.clear();
@@ -910,7 +909,7 @@ void setup() {
     // INPUT
     // --------------------------------------------------------
 
-    joystick.begin();
+    buttons.begin();
 
     // --------------------------------------------------------
     // OLED
@@ -989,16 +988,13 @@ void loop() {
     // -------------------------------------------------------
     // Web Update
     // -------------------------------------------------------
-    
+
     sentinelWeb.update();
     // --------------------------------------------------------
-    // JOYSTICK
+    // BUTTONS
     // --------------------------------------------------------
 
-    joystick.update();
-
-    JoyDirection direction =
-        joystick.getDirection();
+    buttons.update();
 
     // --------------------------------------------------------
     // MENU
@@ -1008,36 +1004,20 @@ void loop() {
         !menu.isInside()
     ) {
 
-        switch (direction) {
-
-            case JoyDirection::UP:
-
-                menu.up();
-
-                break;
-
-            case JoyDirection::DOWN:
-
-                menu.down();
-
-                break;
-
-            case JoyDirection::RIGHT:
-
-                menu.select();
-
-                break;
-
-            default:
-
-                break;
+        if (buttons.wasPressed(BUTTON_UP)) {
+            menu.up();
         }
 
-        if (
-            joystick.wasPressed()
-        ) {
+        if (buttons.wasPressed(BUTTON_DOWN)) {
+            menu.down();
+        }
 
+        if (buttons.wasPressed(BUTTON_OK)) {
             menu.select();
+        }
+
+        if (buttons.wasPressed(BUTTON_BACK)) {
+            menu.select(); // BACK acts as select in main menu (same as joystick press)
         }
     }
 
@@ -1055,57 +1035,28 @@ void loop() {
         menu.selected() == 1
     ) {
 
-        switch (direction) {
-
-            case JoyDirection::UP:
-
-                if (
-                    selectedAP > 0
-                ) {
-
-                    selectedAP--;
-                }
-
-                break;
-
-            case JoyDirection::DOWN:
-
-                if (
-                    selectedAP <
-                    appState.network
-                        .analyzer
-                        .networkCount - 1
-                ) {
-
-                    selectedAP++;
-                }
-
-                break;
-
-            case JoyDirection::RIGHT:
-
-                sentinelNetwork.scanWiFi();
-
-                break;
-
-            case JoyDirection::LEFT:
-
-                menu.back();
-
-                break;
-
-            default:
-
-                break;
+        if (buttons.wasPressed(BUTTON_UP)) {
+            if (selectedAP > 0) {
+                selectedAP--;
+            }
         }
 
-        if (
-            joystick.wasPressed()
-        ) {
+        if (buttons.wasPressed(BUTTON_DOWN)) {
+            if (selectedAP <
+                appState.network
+                    .analyzer
+                    .networkCount - 1) {
+                selectedAP++;
+            }
+        }
 
+        if (buttons.wasPressed(BUTTON_OK)) {
             sentinelNetwork.scanWiFi();
         }
 
+        if (buttons.wasPressed(BUTTON_BACK)) {
+            menu.back();
+        }
     }
 
     // ========================================================
@@ -1116,55 +1067,27 @@ void loop() {
         menu.selected() == 2
     ) {
 
-        switch (direction) {
-
-            case JoyDirection::UP:
-
-                if (
-                    selectedLANDevice > 0
-                ) {
-
-                    selectedLANDevice--;
-                }
-
-                break;
-
-            case JoyDirection::DOWN:
-
-                if (
-                    selectedLANDevice <
-                    appState.network
-                        .lanScanner
-                        .deviceCount - 1
-                ) {
-
-                    selectedLANDevice++;
-                }
-
-                break;
-
-            case JoyDirection::RIGHT:
-
-                sentinelNetwork.scanLAN();
-
-                break;
-
-            case JoyDirection::LEFT:
-
-                menu.back();
-
-                break;
-
-            default:
-
-                break;
+        if (buttons.wasPressed(BUTTON_UP)) {
+            if (selectedLANDevice > 0) {
+                selectedLANDevice--;
+            }
         }
 
-        if (
-            joystick.wasPressed()
-        ) {
+        if (buttons.wasPressed(BUTTON_DOWN)) {
+            if (selectedLANDevice <
+                appState.network
+                    .lanScanner
+                    .deviceCount - 1) {
+                selectedLANDevice++;
+            }
+        }
 
+        if (buttons.wasPressed(BUTTON_OK)) {
             sentinelNetwork.scanLAN();
+        }
+
+        if (buttons.wasPressed(BUTTON_BACK)) {
+            menu.back();
         }
     }
 
@@ -1174,37 +1097,27 @@ void loop() {
 
     else {
 
-        switch (direction) {
-
-            case JoyDirection::LEFT:
-
-                menu.back();
-
-                break;
-
-            case JoyDirection::RIGHT:
-
-                sentinelNetwork.update();
-
-                break;
-
-            default:
-
-                break;
+        if (buttons.wasPressed(BUTTON_BACK)) {
+            menu.back();
         }
 
-        if (
-            joystick.wasPressed()
-        ) {
-
+        if (buttons.wasPressed(BUTTON_OK)) {
             sentinelNetwork.update();
+        }
+    }
+
+    // Handle BACK long press to go to Home/Dashboard
+    if (buttons.wasLongPressed(BUTTON_BACK)) {
+        // Go to root menu by repeatedly calling menu.back() until at root
+        while (!menu.isInside()) {
+            menu.back();
         }
     }
 }
 
-    // --------------------------------------------------------
-    // DISPLAY
-    // --------------------------------------------------------
+// --------------------------------------------------------
+// DISPLAY
+// --------------------------------------------------------
 
     static uint32_t lastDisplay = 0;
 
@@ -1224,7 +1137,7 @@ void loop() {
 
     uint32_t loopTime = millis() - loopStart;
     appState.system.loopTimeMs = loopTime;
-    
+
     if (loopTime > appState.system.maxLoopTimeMs) {
         appState.system.maxLoopTimeMs = loopTime;
     }
