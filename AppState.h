@@ -109,6 +109,8 @@ struct WiFiAnalyzerState {
 
     int openNetworks = 0;
 
+    int hiddenNetworks = 0;
+
     float averageRSSI = 0;
 
     int busiestChannel = 0;
@@ -135,6 +137,8 @@ struct TelemetrySample {
     uint32_t dnsTime;
 
     uint32_t heap;
+
+    uint8_t stateFlags = 0;
 };
 
 // ============================================================
@@ -156,6 +160,14 @@ struct NetworkState {
     bool dnsOnline = false;
 
     // --------------------------------------------------------
+    // CONNECTION UPTIME
+    // --------------------------------------------------------
+
+    uint32_t wifiConnectedSince = 0;
+
+    uint32_t wifiReconnectCount = 0;
+
+    // --------------------------------------------------------
     // WIFI
     // --------------------------------------------------------
 
@@ -166,6 +178,8 @@ struct NetworkState {
     String ssid;
 
     String bssid;
+
+    String wifiMAC;
 
     // --------------------------------------------------------
     // IP
@@ -192,6 +206,42 @@ struct NetworkState {
     uint32_t dnsTime = 0;
 
     // --------------------------------------------------------
+    // OUTAGE TRACKING
+    // --------------------------------------------------------
+
+    uint32_t lastInternetDown = 0;
+
+    uint32_t lastGatewayDown = 0;
+
+    uint32_t lastDnsDown = 0;
+
+    uint32_t lastInternetUp = 0;
+
+    uint32_t lastGatewayUp = 0;
+
+    uint32_t lastDnsUp = 0;
+
+    bool internetWasOnline = false;
+
+    bool gatewayWasOnline = false;
+
+    bool dnsWasOnline = false;
+
+    // --------------------------------------------------------
+    // SPIKE / STABILITY
+    // --------------------------------------------------------
+
+    uint16_t pingSpikes = 0;
+
+    uint16_t lossSpikes = 0;
+
+    uint16_t rssiDrops = 0;
+
+    uint8_t stabilityScore = 100;
+
+    uint8_t healthScore = 100;
+
+    // --------------------------------------------------------
     // ANALYZER
     // --------------------------------------------------------
 
@@ -202,6 +252,24 @@ struct NetworkState {
     // --------------------------------------------------------
 
     LANScannerState lanScanner;
+};
+
+// ============================================================
+// EVENT LOG
+// ============================================================
+
+#define MAX_EVENTS 32
+
+enum EventSeverity : uint8_t {
+    EVENT_INFO = 0,
+    EVENT_WARNING = 1,
+    EVENT_CRITICAL = 2
+};
+
+struct EventEntry {
+    uint32_t timestamp = 0;
+    uint8_t severity = EVENT_INFO;
+    String message;
 };
 
 // ============================================================
@@ -229,7 +297,7 @@ struct SystemMetrics {
 struct AppState {
 
     NetworkState network;
-    
+
     TelemetrySample telemetryHistory[
     TELEMETRY_HISTORY_SIZE
     ];
@@ -237,6 +305,16 @@ struct AppState {
     uint8_t telemetryHistoryIndex = 0;
 
     uint8_t telemetryHistoryCount = 0;
+
+    // Last sample snapshot for spike detection
+    float lastPing = -1;
+    int lastRssi = 0;
+    uint8_t lastLoss = 0;
+
+    // Event log
+    EventEntry events[MAX_EVENTS];
+    uint8_t eventCount = 0;
+    uint8_t eventHead = 0;
 
     uint32_t bootTime = 0;
 

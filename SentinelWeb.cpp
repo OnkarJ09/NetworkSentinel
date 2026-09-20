@@ -386,6 +386,12 @@ CONNECTING
 </button>
 
 <button
+    onclick="showPage('events',this)"
+>
+📋 Events
+</button>
+
+<button
     onclick="showPage('system',this)"
 >
 ⚙ System
@@ -459,6 +465,66 @@ Channel
 
 <div
     id="channel"
+    class="value"
+>
+--
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="card-title">
+Health Score
+</div>
+
+<div
+    id="healthScore"
+    class="value"
+>
+--
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="card-title">
+Stability
+</div>
+
+<div
+    id="stabilityScore"
+    class="value"
+>
+--
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="card-title">
+WiFi Uptime
+</div>
+
+<div
+    id="wifiUptime"
+    class="value"
+>
+--
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="card-title">
+Reconnects
+</div>
+
+<div
+    id="reconnects"
     class="value"
 >
 --
@@ -634,6 +700,51 @@ Busiest Channel
 
 <div
     id="busyChannel"
+    class="value"
+>
+--
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="card-title">
+Hidden Networks
+</div>
+
+<div
+    id="hiddenNetworks"
+    class="value"
+>
+--
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="card-title">
+Strongest Signal
+</div>
+
+<div
+    id="strongestRSSI"
+    class="value"
+>
+--
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="card-title">
+Weakest Signal
+</div>
+
+<div
+    id="weakestRSSI"
     class="value"
 >
 --
@@ -892,6 +1003,91 @@ DNS
 
 </div>
 
+<div class="card">
+
+<div class="card-title">
+Internet Ping
+</div>
+
+<div
+    id="intPing"
+    class="value"
+>
+--
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="card-title">
+Gateway Ping
+</div>
+
+<div
+    id="intGatewayPing"
+    class="value"
+>
+--
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="card-title">
+DNS Latency
+</div>
+
+<div
+    id="intDnsTime"
+    class="value"
+>
+--
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="card-title">
+Packet Loss
+</div>
+
+<div
+    id="intLoss"
+    class="value"
+>
+--
+</div>
+
+</div>
+
+</div>
+
+</section>
+
+<section
+    id="events"
+    style="display:none"
+>
+
+<h1>
+Event Log
+</h1>
+
+<div class="card">
+
+<div
+    id="eventList"
+    class="info"
+    style="max-height:600px;overflow:auto"
+>
+<div class="label">
+Waiting for events...
+</div>
+</div>
+
 </div>
 
 </section>
@@ -961,6 +1157,38 @@ System Load
 WiFi Power
 </div>
 <div id="wifiPower" class="value">
+--
+</div>
+</div>
+<div class="card">
+<div class="card-title">
+WiFi MAC
+</div>
+<div id="wifiMAC" class="value" style="font-size:14px">
+--
+</div>
+</div>
+<div class="card">
+<div class="card-title">
+Firmware
+</div>
+<div id="firmware" class="value" style="font-size:18px">
+V6.0
+</div>
+</div>
+<div class="card">
+<div class="card-title">
+Min Heap
+</div>
+<div id="minHeap" class="value">
+--
+</div>
+</div>
+<div class="card">
+<div class="card-title">
+Max Loop
+</div>
+<div id="maxLoop" class="value">
 --
 </div>
 </div>
@@ -1124,10 +1352,205 @@ function updateDashboard(
     ).textContent =
         data.cpu + " MHz";
 
+    // Bug-fix #2: data.uptime is "H:M:S" string from /api;
+    // formatUptime() expects milliseconds. Display the raw
+    // string as-is.
     document.getElementById(
         "uptime"
     ).textContent =
         data.uptime;
+
+    // --------------------------------------------------------
+    // Bug-fix #4: dashboard WiFiPower + loopTime cards
+    // --------------------------------------------------------
+
+    if (
+        data.wifiTxPower !== undefined
+    ) {
+        document.getElementById(
+            "wifiPower"
+        ).textContent =
+            data.wifiTxPower +
+            " dBm";
+    }
+
+    if (
+        data.loopTimeMs !== undefined
+    ) {
+        document.getElementById(
+            "loopTime"
+        ).textContent =
+            data.loopTimeMs + " ms";
+    }
+
+    if (
+        data.minFreeHeap !== undefined
+    ) {
+        document.getElementById(
+            "minHeap"
+        ).textContent =
+            Math.round(
+                data.minFreeHeap / 1024
+            ) + " KB";
+    }
+
+    if (
+        data.maxLoopTimeMs !== undefined
+    ) {
+        document.getElementById(
+            "maxLoop"
+        ).textContent =
+            data.maxLoopTimeMs + " ms";
+    }
+
+    if (
+        data.wifiMAC !== undefined
+    ) {
+        document.getElementById(
+            "wifiMAC"
+        ).textContent =
+            data.wifiMAC;
+    }
+
+    // --------------------------------------------------------
+    // Bug-fix #3: alert banner
+    // --------------------------------------------------------
+
+    const banner =
+        document.getElementById(
+            "alertBanner"
+        );
+
+    const alerts = [];
+
+    if (data.lowMemory)   alerts.push("LOW MEMORY");
+    if (data.cpuBlocked)  alerts.push("CPU BLOCKED");
+    if (data.highLatency) alerts.push("HIGH LATENCY");
+    if (
+        data.wifi === false
+    ) alerts.push("WIFI OFFLINE");
+
+    if (alerts.length > 0) {
+        banner.textContent =
+            "ALERT: " + alerts.join(", ");
+        banner.style.display = "block";
+    } else {
+        banner.style.display = "none";
+    }
+
+    // --------------------------------------------------------
+    // Health / Stability / WiFi uptime / Reconnects
+    // --------------------------------------------------------
+
+    if (
+        data.healthScore !== undefined
+    ) {
+        const hs =
+            document.getElementById(
+                "healthScore"
+            );
+        hs.textContent =
+            data.healthScore + "/100";
+        hs.className =
+            data.healthScore >= 80
+                ? "value ok"
+                : data.healthScore >= 50
+                    ? "value"
+                    : "value bad";
+    }
+
+    if (
+        data.stabilityScore !== undefined
+    ) {
+        const ss =
+            document.getElementById(
+                "stabilityScore"
+            );
+        ss.textContent =
+            data.stabilityScore + "/100";
+        ss.className =
+            data.stabilityScore >= 80
+                ? "value ok"
+                : data.stabilityScore >= 50
+                    ? "value"
+                    : "value bad";
+    }
+
+    if (
+        data.wifiUptimeSec !== undefined
+    ) {
+        document.getElementById(
+            "wifiUptime"
+        ).textContent =
+            formatUptime(
+                data.wifiUptimeSec * 1000
+            );
+    }
+
+    if (
+        data.wifiReconnects !== undefined
+    ) {
+        document.getElementById(
+            "reconnects"
+        ).textContent =
+            data.wifiReconnects;
+    }
+
+    // --------------------------------------------------------
+    // Internet page cards
+    // --------------------------------------------------------
+
+    if (
+        data.internetPing !== undefined
+    ) {
+        const el =
+            document.getElementById("intPing");
+        if (el) {
+            el.textContent =
+                data.internetPing >= 0
+                    ? Math.round(
+                        data.internetPing
+                    ) + " ms"
+                    : "--";
+        }
+    }
+
+    if (
+        data.gatewayPing !== undefined
+    ) {
+        const el =
+            document.getElementById("intGatewayPing");
+        if (el) {
+            el.textContent =
+                data.gatewayPing >= 0
+                    ? Math.round(
+                        data.gatewayPing
+                    ) + " ms"
+                    : "--";
+        }
+    }
+
+    if (
+        data.dnsTime !== undefined
+    ) {
+        const el =
+            document.getElementById("intDnsTime");
+        if (el) {
+            el.textContent =
+                data.dnsTime + " ms";
+        }
+    }
+
+    if (
+        data.packetLoss !== undefined
+    ) {
+        const el =
+            document.getElementById("intLoss");
+        if (el) {
+            el.textContent =
+                data.packetLoss + "%";
+        }
+    }
 
     document.getElementById(
         "statusText"
@@ -1500,6 +1923,20 @@ function connectWebSocket() {
                     );
                 }
 
+                // --------------------------------------------
+                // EVENTS
+                // --------------------------------------------
+
+                else if (
+                    data.type ===
+                    "events"
+                ) {
+
+                    updateEvents(
+                        data
+                    );
+                }
+
             }
 
             catch(error) {
@@ -1612,6 +2049,57 @@ function updateLiveTelemetry(
             data.uptime
         );
 
+    // Health / stability / lowMemory alert
+    if (
+        data.healthScore !== undefined
+    ) {
+        const hs =
+            document.getElementById(
+                "healthScore"
+            );
+        hs.textContent =
+            data.healthScore + "/100";
+        hs.className =
+            data.healthScore >= 80
+                ? "value ok"
+                : data.healthScore >= 50
+                    ? "value"
+                    : "value bad";
+    }
+
+    if (
+        data.stabilityScore !== undefined
+    ) {
+        const ss =
+            document.getElementById(
+                "stabilityScore"
+            );
+        ss.textContent =
+            data.stabilityScore + "/100";
+        ss.className =
+            data.stabilityScore >= 80
+                ? "value ok"
+                : data.stabilityScore >= 50
+                    ? "value"
+                    : "value bad";
+    }
+
+    if (
+        data.lowMemory !== undefined
+    ) {
+        const banner =
+            document.getElementById(
+                "alertBanner"
+            );
+        if (data.lowMemory) {
+            banner.textContent =
+                "ALERT: LOW MEMORY";
+            banner.style.display = "block";
+        } else {
+            banner.style.display = "none";
+        }
+    }
+
     document.getElementById(
         "statusText"
     ).textContent =
@@ -1647,6 +2135,48 @@ function updateLiveWiFi(
     ).textContent =
         "CH " +
         data.busiestChannel;
+
+    // Hidden / strongest / weakest
+    if (
+        data.hidden !== undefined
+    ) {
+        const el =
+            document.getElementById(
+                "hiddenNetworks"
+            );
+        if (el) {
+            el.textContent =
+                data.hidden;
+        }
+    }
+
+    if (
+        data.strongestRSSI !== undefined
+    ) {
+        const el =
+            document.getElementById(
+                "strongestRSSI"
+            );
+        if (el) {
+            el.textContent =
+                data.strongestRSSI +
+                " dBm";
+        }
+    }
+
+    if (
+        data.weakestRSSI !== undefined
+    ) {
+        const el =
+            document.getElementById(
+                "weakestRSSI"
+            );
+        if (el) {
+            el.textContent =
+                data.weakestRSSI +
+                " dBm";
+        }
+    }
 }
 
 function formatUptime(
@@ -1707,7 +2237,8 @@ function addTelemetryToHistory(data) {
         rssi: data.rssi,
         loss: data.packetLoss,
         dns: data.dnsTime,
-        heap: data.heap
+        heap: data.heap,
+        state: data.state
     });
 
     // Maintain 60-sample limit
@@ -1717,6 +2248,93 @@ function addTelemetryToHistory(data) {
 
     // Redraw graphs
     drawAllGraphs();
+}
+
+function updateEvents(
+    data
+) {
+
+    const list =
+        document.getElementById(
+            "eventList"
+        );
+
+    if (
+        !data.events ||
+        data.events.length === 0
+    ) {
+
+        list.innerHTML =
+            '<div class="label">' +
+            "Waiting for events..." +
+            "</div>";
+
+        return;
+    }
+
+    let html = "";
+
+    for (let i = 0;
+         i < data.events.length;
+         i++) {
+
+        const e = data.events[i];
+
+        const color =
+            e.severity === 2
+                ? "#e74c3c"
+                : e.severity === 1
+                    ? "#f39c12"
+                    : "#3498db";
+
+        html +=
+            '<div style="border-left:3px solid ' +
+            color +
+            ';padding:6px;margin-bottom:4px">';
+
+        html +=
+            '<div style="font-weight:600">' +
+            escapeHtml(
+                e.title
+            ) +
+            "</div>";
+
+        html +=
+            '<div class="label">' +
+            escapeHtml(
+                e.message
+            ) +
+            "</div>";
+
+        html +=
+            '<div class="label">' +
+            escapeHtml(
+                e.source
+            ) +
+            " · " +
+            escapeHtml(
+                e.timestamp
+            ) +
+            "</div>";
+
+        html += "</div>";
+    }
+
+    list.innerHTML = html;
+}
+
+function escapeHtml(
+    str
+) {
+
+    if (!str) return "";
+
+    return str
+        .toString()
+        .replace(/&/g, "&")
+        .replace(/</g, "<")
+        .replace(/>/g, ">")
+        .replace(/"/g, """);
 }
 
 function drawAllGraphs() {
@@ -2076,6 +2694,24 @@ void SentinelWeb::update() {
 
         broadcastLAN();
     }
+
+    // ========================================================
+    // EVENTS
+    // ========================================================
+
+    static uint32_t lastEventsBroadcast = 0;
+
+    if (
+        now -
+        lastEventsBroadcast >=
+        5000
+    ) {
+
+        lastEventsBroadcast =
+            now;
+
+        broadcastEvents();
+    }
 }
 
 // ============================================================
@@ -2121,6 +2757,14 @@ void SentinelWeb::setupRoutes() {
         HTTP_GET,
         [this]() {
             handleLANScan();
+        }
+    );
+
+    server.on(
+        "/api/events",
+        HTTP_GET,
+        [this]() {
+            handleEvents();
         }
     );
 
@@ -2185,6 +2829,9 @@ void SentinelWeb::webSocketEvent(
             String lan =
                 createLANJSON();
 
+            String events =
+                createEventsJSON();
+
             webSocket.sendTXT(
                 clientNum,
                 telemetry
@@ -2203,6 +2850,11 @@ void SentinelWeb::webSocketEvent(
             webSocket.sendTXT(
                 clientNum,
                 lan
+            );
+
+            webSocket.sendTXT(
+                clientNum,
+                events
             );
 
             break;
@@ -2408,6 +3060,29 @@ String SentinelWeb::createTelemetryJSON() {
         ",";
 
     json +=
+        "\"healthScore\":" +
+        String(
+            n.healthScore
+        ) +
+        ",";
+
+    json +=
+        "\"stabilityScore\":" +
+        String(
+            n.stabilityScore
+        ) +
+        ",";
+
+    json +=
+        "\"lowMemory\":" +
+        String(
+            appState.system.alerts.lowMemory
+                ? "true"
+                : "false"
+        ) +
+        ",";
+
+    json +=
         "\"uptime\":" +
         String(
             millis()
@@ -2453,6 +3128,13 @@ String SentinelWeb::createWiFiEventJSON() {
         ",";
 
     json +=
+        "\"hidden\":" +
+        String(
+            a.hiddenNetworks
+        ) +
+        ",";
+
+    json +=
         "\"busiestChannel\":" +
         String(
             a.busiestChannel
@@ -2463,6 +3145,28 @@ String SentinelWeb::createWiFiEventJSON() {
         "\"congestion\":" +
         String(
             a.congestion
+        ) +
+        ",";
+
+    json +=
+        "\"strongestRSSI\":" +
+        String(
+            a.strongestIndex >= 0
+                ? a.networks[
+                    a.strongestIndex
+                ].rssi
+                : 0
+        ) +
+        ",";
+
+    json +=
+        "\"weakestRSSI\":" +
+        String(
+            a.weakestIndex >= 0
+                ? a.networks[
+                    a.weakestIndex
+                ].rssi
+                : 0
         ) +
         ",";
 
@@ -2726,6 +3430,61 @@ String SentinelWeb::createJSON() {
         String(appState.system.alerts.highLatency ? "true" : "false") +
         ",";
 
+    // WiFi MAC
+    json +=
+        "\"wifiMAC\":\"" +
+        n.wifiMAC +
+        "\",";
+
+    // WiFi connection uptime in seconds (or 0 if not connected)
+    uint32_t wifiUpSec = 0;
+    if (
+        n.wifiConnectedSince > 0 &&
+        n.wifiConnected
+    ) {
+        wifiUpSec = (millis() - n.wifiConnectedSince) / 1000;
+    }
+
+    json +=
+        "\"wifiUptimeSec\":" +
+        String(wifiUpSec) +
+        ",";
+
+    json +=
+        "\"wifiReconnects\":" +
+        String(n.wifiReconnectCount) +
+        ",";
+
+    json +=
+        "\"stabilityScore\":" +
+        String(n.stabilityScore) +
+        ",";
+
+    json +=
+        "\"healthScore\":" +
+        String(n.healthScore) +
+        ",";
+
+    json +=
+        "\"pingSpikes\":" +
+        String(n.pingSpikes) +
+        ",";
+
+    json +=
+        "\"lossSpikes\":" +
+        String(n.lossSpikes) +
+        ",";
+
+    json +=
+        "\"rssiDrops\":" +
+        String(n.rssiDrops) +
+        ",";
+
+    json +=
+        "\"gatewayPing\":" +
+        String(n.gatewayPing) +
+        ",";
+
     char uptimeString[20];
 
     snprintf(
@@ -2891,6 +3650,18 @@ void SentinelWeb::recordTelemetry() {
     sample.heap =
         ESP.getFreeHeap() / 1024;
 
+    // Bit 0 = wifi, Bit 1 = gateway, Bit 2 = internet, Bit 3 = dns
+    sample.stateFlags =
+        (appState.network.wifiConnected   ? 1 : 0) |
+        (appState.network.gatewayOnline   ? 2 : 0) |
+        (appState.network.internetOnline  ? 4 : 0) |
+        (appState.network.dnsOnline       ? 8 : 0);
+
+    // Detect outages and spikes once per sample
+    detectOutages();
+    detectSpikes();
+    computeHealthScore();
+
     appState.telemetryHistoryIndex++;
 
     if (
@@ -2996,6 +3767,13 @@ String SentinelWeb::createHistoryJSON() {
             "\"heap\":" +
             String(
                 sample.heap
+            ) +
+            ",";
+
+        json +=
+            "\"state\":" +
+            String(
+                (unsigned)sample.stateFlags
             );
 
         json += "}";
@@ -3006,6 +3784,366 @@ String SentinelWeb::createHistoryJSON() {
     return json;
 }
 
+// ============================================================
+// EVENT LOG
+// ============================================================
+
+void SentinelWeb::recordEvent(
+    uint8_t severity,
+    const String& message
+) {
+
+    EventEntry& entry =
+        appState.events[
+            appState.eventHead
+        ];
+
+    entry.timestamp = millis();
+    entry.severity = severity;
+    entry.message = message;
+
+    appState.eventHead =
+        (appState.eventHead + 1) % MAX_EVENTS;
+
+    if (appState.eventCount < MAX_EVENTS) {
+        appState.eventCount++;
+    }
+
+    // Print the event to Serial so the user can debug
+    Serial.print("[EVENT] ");
+    if (severity == EVENT_WARNING) Serial.print("WARN ");
+    else if (severity == EVENT_CRITICAL) Serial.print("CRIT ");
+    else Serial.print("INFO ");
+    Serial.println(message);
+}
+
+// ============================================================
+// OUTAGE DETECTION
+// ============================================================
+
+void SentinelWeb::detectOutages() {
+
+    uint32_t now = millis();
+
+    // -------------------------------------------------------
+    // INTERNET
+    // -------------------------------------------------------
+
+    if (
+        appState.network.internetWasOnline &&
+        !appState.network.internetOnline
+    ) {
+
+        appState.network.lastInternetDown = now;
+
+        recordEvent(
+            EVENT_WARNING,
+            "Internet unavailable"
+        );
+    }
+
+    if (
+        !appState.network.internetWasOnline &&
+        appState.network.internetOnline
+    ) {
+
+        appState.network.lastInternetUp = now;
+
+        recordEvent(
+            EVENT_INFO,
+            "Internet restored"
+        );
+    }
+
+    appState.network.internetWasOnline =
+        appState.network.internetOnline;
+
+    // -------------------------------------------------------
+    // GATEWAY
+    // -------------------------------------------------------
+
+    if (
+        appState.network.gatewayWasOnline &&
+        !appState.network.gatewayOnline
+    ) {
+
+        appState.network.lastGatewayDown = now;
+
+        recordEvent(
+            EVENT_WARNING,
+            "Gateway unreachable"
+        );
+    }
+
+    if (
+        !appState.network.gatewayWasOnline &&
+        appState.network.gatewayOnline
+    ) {
+
+        appState.network.lastGatewayUp = now;
+
+        recordEvent(
+            EVENT_INFO,
+            "Gateway reachable"
+        );
+    }
+
+    appState.network.gatewayWasOnline =
+        appState.network.gatewayOnline;
+
+    // -------------------------------------------------------
+    // DNS
+    // -------------------------------------------------------
+
+    if (
+        appState.network.dnsWasOnline &&
+        !appState.network.dnsOnline
+    ) {
+
+        appState.network.lastDnsDown = now;
+
+        recordEvent(
+            EVENT_WARNING,
+            "DNS failure"
+        );
+    }
+
+    if (
+        !appState.network.dnsWasOnline &&
+        appState.network.dnsOnline
+    ) {
+
+        appState.network.lastDnsUp = now;
+
+        recordEvent(
+            EVENT_INFO,
+            "DNS restored"
+        );
+    }
+
+    appState.network.dnsWasOnline =
+        appState.network.dnsOnline;
+}
+
+// ============================================================
+// SPIKE DETECTION
+// ============================================================
+
+void SentinelWeb::detectSpikes() {
+
+    // Skip the first sample to establish a baseline
+    if (appState.telemetryHistoryCount == 0) {
+
+        appState.lastPing = appState.network.internetPing;
+        appState.lastRssi = appState.network.rssi;
+        appState.lastLoss = appState.network.packetLoss;
+        return;
+    }
+
+    // -------------------------------------------------------
+    // Ping spike: jumped by > 100ms in one sample
+    // -------------------------------------------------------
+
+    if (
+        appState.lastPing >= 0 &&
+        appState.network.internetPing >= 0 &&
+        appState.network.internetPing -
+            appState.lastPing > 100.0f
+    ) {
+
+        appState.network.pingSpikes++;
+
+        if (
+            appState.network.pingSpikes < 5
+        ) {
+            recordEvent(
+                EVENT_WARNING,
+                "Latency spike: " +
+                    String(
+                        (int)appState.network.internetPing
+                    ) + " ms"
+            );
+        }
+    }
+
+    // -------------------------------------------------------
+    // Loss spike: jumped by > 20%
+    // -------------------------------------------------------
+
+    if (
+        appState.network.packetLoss >
+            appState.lastLoss + 20
+    ) {
+
+        appState.network.lossSpikes++;
+
+        if (
+            appState.network.lossSpikes < 5
+        ) {
+            recordEvent(
+                EVENT_WARNING,
+                "Packet loss spike: " +
+                    String(
+                        appState.network.packetLoss
+                    ) + "%"
+            );
+        }
+    }
+
+    // -------------------------------------------------------
+    // RSSI drop: dropped by > 10 dBm
+    // -------------------------------------------------------
+
+    if (
+        appState.lastRssi != 0 &&
+        appState.network.rssi <
+            appState.lastRssi - 10
+    ) {
+
+        appState.network.rssiDrops++;
+
+        if (
+            appState.network.rssiDrops < 5
+        ) {
+            recordEvent(
+                EVENT_WARNING,
+                "RSSI drop: " +
+                    String(
+                        appState.network.rssi
+                    ) + " dBm"
+            );
+        }
+    }
+
+    appState.lastPing = appState.network.internetPing;
+    appState.lastRssi = appState.network.rssi;
+    appState.lastLoss = appState.network.packetLoss;
+}
+
+// ============================================================
+// HEALTH SCORE
+// ============================================================
+
+void SentinelWeb::computeHealthScore() {
+
+    // -------------------------------------------------------
+    // Stability score (0-100): based on recent spike counts.
+    // Each spike subtracts 5 points.
+    // -------------------------------------------------------
+
+    uint16_t totalSpikes =
+        appState.network.pingSpikes +
+        appState.network.lossSpikes +
+        appState.network.rssiDrops;
+
+    int stability = 100 - (int)min(totalSpikes, (uint16_t)100) / 2;
+
+    if (stability < 0) stability = 0;
+
+    appState.network.stabilityScore =
+        (uint8_t)stability;
+
+    // -------------------------------------------------------
+    // Health score (0-100): combination of
+    //   - WiFi connectivity (40)
+    //   - Internet reachability (30)
+    //   - DNS reachability (15)
+    //   - Loss-free (10)
+    //   - Latency under threshold (5)
+    // -------------------------------------------------------
+
+    int health = 0;
+
+    if (appState.network.wifiConnected)
+        health += 40;
+
+    if (appState.network.internetOnline)
+        health += 30;
+
+    if (appState.network.dnsOnline)
+        health += 15;
+
+    if (appState.network.packetLoss == 0)
+        health += 10;
+
+    if (
+        appState.network.internetPing > 0 &&
+        appState.network.internetPing < 100
+    )
+        health += 5;
+
+    appState.network.healthScore =
+        (uint8_t)health;
+}
+
+// ============================================================
+// EVENTS JSON / BROADCAST
+// ============================================================
+
+String SentinelWeb::createEventsJSON() {
+
+    String json = "{";
+
+    json += "\"type\":\"events\",";
+    json += "\"count\":" +
+        String(appState.eventCount) +
+        ",";
+    json += "\"events\":[";
+
+    for (uint8_t i = 0; i < appState.eventCount; i++) {
+
+        // Oldest first
+        uint8_t idx =
+            (appState.eventHead +
+                MAX_EVENTS -
+                appState.eventCount +
+                i
+            ) % MAX_EVENTS;
+
+        EventEntry& e = appState.events[idx];
+
+        if (i > 0) json += ",";
+
+        const char* sev = "INFO";
+        if (e.severity == EVENT_WARNING) sev = "WARNING";
+        else if (e.severity == EVENT_CRITICAL) sev = "CRITICAL";
+
+        json += "{";
+        json += "\"time\":" + String(e.timestamp) + ",";
+        json += "\"severity\":\"" + String(sev) + "\",";
+        json += "\"message\":\"" + e.message + "\"";
+        json += "}";
+    }
+
+    json += "]}";
+
+    return json;
+}
+
+void SentinelWeb::broadcastEvents() {
+
+    if (webSocket.connectedClients() == 0) {
+        return;
+    }
+
+    String events = createEventsJSON();
+
+    webSocket.broadcastTXT(events);
+}
+
+void SentinelWeb::handleEvents() {
+
+    server.send(
+        200,
+        "application/json",
+        createEventsJSON()
+    );
+}
+
+
+// ============================================================
+// LAN JSON
+// ============================================================
 
 String SentinelWeb::createLANJSON() {
 

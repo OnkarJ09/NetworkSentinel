@@ -35,6 +35,8 @@ private:
 
     void broadcastLAN();
 
+    void broadcastEvents();
+
     void handleRoot();
 
     void handleAPI();
@@ -45,9 +47,22 @@ private:
 
     void handleLANScan();
 
+    void handleEvents();
+
     void handleNotFound();
 
     void recordTelemetry();
+
+    void recordEvent(
+        uint8_t severity,
+        const String& message
+    );
+
+    void detectOutages();
+
+    void detectSpikes();
+
+    void computeHealthScore();
 
     void broadcastHistory();
 
@@ -62,6 +77,8 @@ private:
     String createHistoryJSON();
 
     String createLANJSON();
+
+    String createEventsJSON();
 
     uint32_t lastTelemetryBroadcast = 0;
 

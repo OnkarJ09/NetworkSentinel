@@ -210,6 +210,18 @@ void SentinelNetwork::connectWiFi() {
         return;
     }
 
+    // Detect a transition from connected -> disconnected
+    if (appState.network.wifiConnected) {
+
+        appState.network.wifiReconnectCount++;
+
+        appState.network.wifiConnectedSince = 0;
+
+        Serial.println(
+            "WiFi reconnect detected"
+        );
+    }
+
     appState.network.wifiConnected =
         false;
 
@@ -253,6 +265,11 @@ void SentinelNetwork::connectWiFi() {
 
         appState.network.wifiConnected =
             true;
+
+        // Mark the moment we (re)connected for uptime tracking
+        if (appState.network.wifiConnectedSince == 0) {
+            appState.network.wifiConnectedSince = millis();
+        }
 
         Serial.println(
             "WiFi connected!"
@@ -303,6 +320,9 @@ void SentinelNetwork::collectWiFiInfo() {
     appState.network.bssid =
         WiFi.BSSIDstr();
 
+    appState.network.wifiMAC =
+        WiFi.macAddress();
+
     appState.network.rssi =
         WiFi.RSSI();
 
@@ -320,6 +340,9 @@ void SentinelNetwork::collectWiFiInfo() {
 
     appState.network.dnsIP =
         WiFi.dnsIP();
+
+    appState.system.wifiTxPower =
+        WiFi.getTxPower();
 }
 
 // ============================================================
@@ -758,6 +781,9 @@ void SentinelNetwork::scanWiFi() {
     appState.network.analyzer.openNetworks =
         0;
 
+    appState.network.analyzer.hiddenNetworks =
+        0;
+
     appState.network.analyzer.averageRSSI =
         0;
 
@@ -967,6 +993,17 @@ void SentinelNetwork::calculateWiFiStatistics() {
         ) {
 
             analyzer.openNetworks++;
+        }
+
+        // ----------------------------------------------------
+        // Hidden SSIDs
+        // ----------------------------------------------------
+
+        if (
+            network.ssid.length() == 0
+        ) {
+
+            analyzer.hiddenNetworks++;
         }
 
         // ----------------------------------------------------
