@@ -239,18 +239,19 @@ lib.updateLiveWiFi(wifiPayload);
 ['wifiCount','avgRSSI','openNetworks','busyChannel','hiddenNetworks','strongestRSSI','weakestRSSI']
     .forEach(id => console.log(id, '=', read(id)));
 
-// Events payload — shape must match what createEventsJSON() emits:
-// { type, count, events:[ { timestamp (millis), severity (numeric), message } ] }
+// Events payload — shape must match what createEventsJSON() actually emits:
+// { type, count, events:[ { time, severity (STRING: 'INFO'/'WARNING'/'CRITICAL'), message } ] }
+// Note: producer emits severity as a STRING label, not a number.
 const eventsPayload = {
     type: 'events',
     events: [
-        { timestamp: 4500000, severity: 0, message: 'Internet restored, ping 23ms' },
-        { timestamp: 4200000, severity: 2, message: 'WiFi disconnected, lost link to AP' },
-        { timestamp: 3600000, severity: 1, message: 'Ping spike 450ms (baseline 25ms)' },
+        { timestamp: 4500000, severity: 'INFO', message: 'Internet restored, ping 23ms' },
+        { timestamp: 4200000, severity: 'CRITICAL', message: 'WiFi disconnected, lost link to AP' },
+        { timestamp: 3600000, severity: 'WARNING', message: 'Ping spike 450ms (baseline 25ms)' },
     ],
 };
 
-console.log('\n=== updateEvents ===');
+console.log('\n=== updateEvents (real producer shape: string severity) ===');
 lib.updateEvents(eventsPayload);
 const evList = elements.get('eventList');
 console.log('eventList.innerHTML length =', (evList.innerHTML || '').length);
@@ -261,11 +262,18 @@ console.log('eventList contains color #e74c3c (critical):', (evList.innerHTML ||
 console.log('eventList contains color #f39c12 (warning):', (evList.innerHTML || '').includes('#f39c12'));
 console.log('eventList contains color #3498db (info):', (evList.innerHTML || '').includes('#3498db'));
 
+expect('critical severity (string) renders red color',
+    (evList.innerHTML || '').includes('#e74c3c'), v => v === true);
+expect('warning severity (string) renders orange color',
+    (evList.innerHTML || '').includes('#f39c12'), v => v === true);
+expect('info severity (string) renders blue color',
+    (evList.innerHTML || '').includes('#3498db'), v => v === true);
+
 // XSS safety: a malicious payload should not inject <script>
 const xssPayload = {
     type: 'events',
     events: [
-        { timestamp: 0, severity: 2, message: '</div><script>alert(1)</script>' },
+        { timestamp: 0, severity: 'CRITICAL', message: '</div><script>alert(1)</script>' },
     ],
 };
 lib.updateEvents(xssPayload);

@@ -2280,11 +2280,13 @@ function updateEvents(
 
         const e = data.events[i];
 
-        // severity is numeric: 0=info 1=warning 2=critical
+        // Bug-fix #5: producer emits severity as a string
+        // ("INFO"/"WARNING"/"CRITICAL"), not a number. Compare
+        // against strings so warning/critical colors actually render.
         const color =
-            e.severity === 2
+            e.severity === "CRITICAL"
                 ? "#e74c3c"
-                : e.severity === 1
+                : e.severity === "WARNING"
                     ? "#f39c12"
                     : "#3498db";
 

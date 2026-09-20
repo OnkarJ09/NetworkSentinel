@@ -211,6 +211,89 @@ for (const p of wiredProducers) {
     expect('producer ' + p + ' is consumed by at least one JS function', true, '');
 }
 
+// -----------------------------------------------------------
+// 6. Value-shape contracts: for fields with known enumerated
+//    values, verify both sides use the same literal type (string
+//    vs number). Bug #5 was severity — producer emitted a string
+//    label but the JS compared against a number, so all events
+//    rendered with the default color.
+// -----------------------------------------------------------
+console.log('\n=== Value-shape contracts ===');
+
+// Helper: scan producer body for the type of a given field.
+// Returns 'string' if it sees "<field>":"<literal>", 'number' if
+// it sees "<field>":<bare-num>, or null if unknown.
+function producerFieldType(producer, field) {
+    const fields = producerFields[producer];
+    if (!fields || !fields.has(field)) return null;
+    const fnName = ({
+        telemetry: 'createTelemetryJSON',
+        wifi: 'createWiFiEventJSON',
+        history: 'createHistoryJSON',
+        events: 'createEventsJSON',
+        lan: 'createLANJSON',
+    })[producer];
+    const sigRegex = new RegExp('String\\s+SentinelWeb::' + fnName + '\\s*\\(', 'g');
+    const m = sigRegex.exec(cpp);
+    if (!m) return null;
+    const body = cpp.slice(m.index, m.index + 8000);
+    // Match the field key: \"field\":  then look at how the value is
+    // produced. Producer emits `\"field\":\"\"+String(...)+...` for
+    // dynamic strings, or `\"field\":\"<literal>\"` for inline literals.
+    // Use a regex LITERAL (not string-built) to avoid escaping ambiguity.
+    const keyRe = new RegExp('\\\\"' + field + '\\\\"\\s*:');
+    const keyMatch = body.match(keyRe);
+    if (!keyMatch) return null;
+    const start = body.indexOf(keyMatch[0]) + keyMatch[0].length;
+    const afterKey = body.slice(start, start + 60);
+    // String emission: `\"field\":\"\"+String(...)` — note the C++ empty
+    // string is literally `\"\"` (1 BS + quote + quote, which the file
+    // contains as 3 chars: `\` `"` `"`).
+    if (/^\\"\s*"\s*\+\s*String\(/.test(afterKey) ||
+        /^\\"[A-Za-z]+\\"/.test(afterKey)) {
+        return { type: 'string' };
+    }
+    // Number emission: `\"field\":<bare>
+    if (/^[+\-]?\d/.test(afterKey)) {
+        return { type: 'number' };
+    }
+    return null;
+}
+
+// Helper: scan JS reader body for the literal compared against.
+// Returns 'string' if it sees field === "<x>", 'number' if it sees
+// field === <bare-num>.
+function jsFieldReaderType(fn, field) {
+    const re = new RegExp('function\\s+' + fn + '\\s*\\([\\s\\S]*?\\n\\}', 'm');
+    const m = cleanJS.match(re);
+    if (!m) return null;
+    const body = m[0];
+    // String comparison: field === "<x>"
+    const strRe = new RegExp('\\b' + field + '\\b\\s*===\\s*"([^"]+)"');
+    if (strRe.test(body)) return 'string';
+    // Number comparison: field === <num>
+    const numRe = new RegExp('\\b' + field + '\\b\\s*===\\s*(-?\\d+)');
+    if (numRe.test(body)) return 'number';
+    return null;
+}
+
+// Known string-valued fields where producer and reader must agree.
+const valueContracts = [
+    { field: 'severity', producer: 'events', reader: 'updateEvents',
+      allowedTypes: ['string'] },
+    { field: 'severity', producer: 'events', reader: 'updateLAN',
+      allowedTypes: ['string', null] }, // updateLAN doesn't read severity
+];
+for (const c of valueContracts) {
+    const pt = producerFieldType(c.producer, c.field);
+    const jt = jsFieldReaderType(c.reader, c.field);
+    if (!pt || !jt) continue;
+    expect(c.reader + '.' + c.field + ' reader type = producer type (' + pt.type + ')',
+        jt === pt.type, 'producer=' + pt.type + ' reader=' + jt);
+    expect(c.reader + '.' + c.field + ' reader type is in allowed list',
+        c.allowedTypes.includes(jt), 'allowed=' + JSON.stringify(c.allowedTypes));
+}
+
 console.log('\n' + '='.repeat(50));
 if (fails === 0) {
     console.log('All WS JSON shape checks passed.');
