@@ -1255,15 +1255,23 @@ function setStatus(
     value
 ) {
 
+    // Bug-fix #6: producers emit booleans as the strings "true"/"false".
+    // Coerce so the comparison treats them as real booleans.
+    const ok = isTrue(value);
+
     element.textContent =
-        value
+        ok
             ? "ONLINE"
             : "OFFLINE";
 
     element.className =
-        value
+        ok
             ? "value ok"
             : "value bad";
+}
+
+function isTrue(value) {
+    return value === true || value === "true";
 }
 
 function updateDashboard(
@@ -1423,11 +1431,11 @@ function updateDashboard(
 
     const alerts = [];
 
-    if (data.lowMemory)   alerts.push("LOW MEMORY");
-    if (data.cpuBlocked)  alerts.push("CPU BLOCKED");
-    if (data.highLatency) alerts.push("HIGH LATENCY");
+    if (isTrue(data.lowMemory))    alerts.push("LOW MEMORY");
+    if (isTrue(data.cpuBlocked))   alerts.push("CPU BLOCKED");
+    if (isTrue(data.highLatency))  alerts.push("HIGH LATENCY");
     if (
-        data.wifi === false
+        !isTrue(data.wifi)
     ) alerts.push("WIFI OFFLINE");
 
     if (alerts.length > 0) {
@@ -1646,16 +1654,16 @@ function updateLAN(
     document.getElementById(
         "lanScanState"
     ).textContent =
-        data.scanning
+        isTrue(data.scanning)
             ? "SCANNING"
-            : (data.scanComplete ? "COMPLETE" : "IDLE");
+            : (isTrue(data.scanComplete) ? "COMPLETE" : "IDLE");
 
     document.getElementById(
         "lanScanState"
     ).className =
-        data.scanning
+        isTrue(data.scanning)
             ? "value"
-            : (data.scanComplete ? "value ok" : "value");
+            : (isTrue(data.scanComplete) ? "value ok" : "value");
 
     document.getElementById(
         "lanSubnet"
@@ -1673,8 +1681,8 @@ function updateLAN(
 
     // Update auto-scan status
     const autoStatusEl = document.getElementById("lanAutoStatus");
-    if (data.autoScanning) {
-        if (data.scanning) {
+    if (isTrue(data.autoScanning)) {
+        if (isTrue(data.scanning)) {
             autoStatusEl.textContent = "SCANNING";
             autoStatusEl.className = "value";
         } else {
@@ -2091,7 +2099,7 @@ function updateLiveTelemetry(
             document.getElementById(
                 "alertBanner"
             );
-        if (data.lowMemory) {
+        if (isTrue(data.lowMemory)) {
             banner.textContent =
                 "ALERT: LOW MEMORY";
             banner.style.display = "block";
@@ -2103,7 +2111,7 @@ function updateLiveTelemetry(
     document.getElementById(
         "statusText"
     ).textContent =
-        data.internet
+        isTrue(data.internet)
             ? "LIVE"
             : "OFFLINE";
 }

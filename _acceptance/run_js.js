@@ -154,10 +154,11 @@ const apiPayload = {
     internetPing: 23,
     gatewayPing: 2,
     packetLoss: 1,
-    wifi: true,
-    gatewayOnline: true,
-    internetOnline: true,
-    dnsOnline: true,
+    // Producer emits booleans as the strings "true"/"false" (Bug #6).
+    wifi: "true",
+    gatewayOnline: "true",
+    internetOnline: "true",
+    dnsOnline: "true",
     heap: 245760,
     cpu: 240,
     uptime: '12:34:56',
@@ -170,9 +171,9 @@ const apiPayload = {
     stabilityScore: 92,
     wifiUptimeSec: 7200,
     wifiReconnects: 3,
-    lowMemory: false,
-    cpuBlocked: false,
-    highLatency: false,
+    lowMemory: "false",
+    cpuBlocked: "false",
+    highLatency: "false",
     dnsTime: 12,
 };
 
@@ -195,15 +196,17 @@ const telPayload = {
     rssi: -57,
     packetLoss: 0,
     channel: 11,
-    wifi: true,
-    gateway: true,
-    internet: true,
-    dns: true,
+    // Producer emits booleans as the strings "true"/"false". Coerce
+    // the harness to match the actual producer shape (Bug #6).
+    wifi: "true",
+    gateway: "true",
+    internet: "true",
+    dns: "true",
     heap: 250000,
     uptime: 4500000,
     healthScore: 90,
     stabilityScore: 95,
-    lowMemory: false,
+    lowMemory: "false",
 };
 
 console.log('\n=== updateLiveTelemetry (WS payload, millis) ===');
@@ -212,12 +215,12 @@ lib.updateLiveTelemetry(telPayload);
     .forEach(id => console.log(id, '=', read(id)));
 
 // Telemetry with lowMemory=true to verify alert banner
-telPayload.lowMemory = true;
+telPayload.lowMemory = "true";
 lib.updateLiveTelemetry(telPayload);
 console.log('\n--- alertBanner after lowMemory=true ---');
 console.log('alertBanner =', read('alertBanner'));
 console.log('alertBanner.style.display =', elements.get('alertBanner').style.display);
-telPayload.lowMemory = false;
+telPayload.lowMemory = "false";
 lib.updateLiveTelemetry(telPayload);
 console.log('\n--- alertBanner after lowMemory=false ---');
 console.log('alertBanner =', read('alertBanner'));
@@ -334,10 +337,18 @@ expect('strongestRSSI', (function(){ lib.updateLiveWiFi(wifiPayload); return rea
     v => v === '-42 dBm');
 expect('weakestRSSI', (function(){ lib.updateLiveWiFi(wifiPayload); return read('weakestRSSI'); })(),
     v => v === '-88 dBm');
-expect('alertBanner hidden when healthy', (function(){ apiPayload.lowMemory = false; apiPayload.cpuBlocked = false; apiPayload.highLatency = false; lib.updateDashboard(apiPayload); return elements.get('alertBanner').style.display; })(),
+expect('alertBanner hidden when healthy', (function(){ apiPayload.lowMemory = "false"; apiPayload.cpuBlocked = "false"; apiPayload.highLatency = "false"; lib.updateDashboard(apiPayload); return elements.get('alertBanner').style.display; })(),
     v => v === 'none');
-expect('alertBanner visible when lowMemory=true', (function(){ apiPayload.lowMemory = true; lib.updateDashboard(apiPayload); return elements.get('alertBanner').style.display; })(),
+expect('alertBanner visible when lowMemory=true', (function(){ apiPayload.lowMemory = "true"; lib.updateDashboard(apiPayload); return elements.get('alertBanner').style.display; })(),
     v => v === 'block');
+// Bug #6: producer emits booleans as "true"/"false" strings. Verify
+// the JS correctly distinguishes them in setStatus + dashboard checks.
+expect('setStatus: wifiStatus="false" shows OFFLINE',
+    (function(){ apiPayload.wifi = "false"; lib.updateDashboard(apiPayload); return read('wifiStatus'); })(),
+    v => v === 'OFFLINE');
+expect('setStatus: wifiStatus="true" shows ONLINE',
+    (function(){ apiPayload.wifi = "true"; lib.updateDashboard(apiPayload); return read('wifiStatus'); })(),
+    v => v === 'ONLINE');
 
 // updateLAN
 const lanPayload = {
