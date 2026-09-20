@@ -2280,6 +2280,7 @@ function updateEvents(
 
         const e = data.events[i];
 
+        // severity is numeric: 0=info 1=warning 2=critical
         const color =
             e.severity === 2
                 ? "#e74c3c"
@@ -2295,7 +2296,9 @@ function updateEvents(
         html +=
             '<div style="font-weight:600">' +
             escapeHtml(
-                e.title
+                formatUptime(
+                    e.timestamp || 0
+                )
             ) +
             "</div>";
 
@@ -2303,17 +2306,6 @@ function updateEvents(
             '<div class="label">' +
             escapeHtml(
                 e.message
-            ) +
-            "</div>";
-
-        html +=
-            '<div class="label">' +
-            escapeHtml(
-                e.source
-            ) +
-            " · " +
-            escapeHtml(
-                e.timestamp
             ) +
             "</div>";
 
@@ -2334,7 +2326,7 @@ function escapeHtml(
         .replace(/&/g, "&")
         .replace(/</g, "<")
         .replace(/>/g, ">")
-        .replace(/"/g, """);
+        .replace(/"/g, "\"");
 }
 
 function drawAllGraphs() {
