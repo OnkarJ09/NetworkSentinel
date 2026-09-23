@@ -43,6 +43,9 @@ struct LANDevice {
     uint32_t lastSeen = 0;
 
     uint32_t firstSeen = 0;
+
+    // Set true when the device responds during the current scan
+    bool seenThisScan = false;
 };
 
 // ============================================================
@@ -71,6 +74,9 @@ struct LANScannerState {
     int totalHosts = 0;
 
     int scannedHosts = 0;
+
+    // Percentage of known devices currently online (0-100)
+    uint8_t healthScore = 0;
 };
 
 // ============================================================
@@ -118,6 +124,9 @@ struct WiFiAnalyzerState {
     int busiestChannelCount = 0;
 
     int congestion = 0;
+
+    // Least congested of channels 1/6/11
+    int recommendedChannel = 0;
 };
 
 
@@ -139,6 +148,50 @@ struct TelemetrySample {
     uint32_t heap;
 
     uint8_t stateFlags = 0;
+};
+
+// ============================================================
+// SECURITY BASELINE (Phase 10)
+// ============================================================
+
+#define MAX_KNOWN_APS 32
+
+struct KnownAP {
+
+    String bssid;
+
+    String ssid;
+
+    String security;
+
+    bool seen = false;
+};
+
+struct SecurityState {
+
+    KnownAP known[MAX_KNOWN_APS];
+
+    int knownCount = 0;
+
+    int unknownAPs = 0;
+
+    int disappeared = 0;
+
+    int rogueAPs = 0;
+
+    int openCount = 0;
+
+    // Event edge-trigger memory (avoid spamming every scan)
+    int prevOpen = 0;
+
+    int prevRogue = 0;
+
+    String posture = "GOOD";
+
+    uint32_t lastAnalysis = 0;
+
+    // ponytail: RAM-only baseline, resets on reboot.
+    // Persist in LittleFS when Phase 11 lands.
 };
 
 // ============================================================
@@ -243,11 +296,26 @@ struct NetworkState {
 
     uint8_t healthScore = 100;
 
+    bool highLatencyActive = false;
+
+    // Intermittent-connectivity window (Phase 9)
+    uint8_t outageCount = 0;
+
+    uint32_t outageWindowStart = 0;
+
+    bool intermittentReported = false;
+
     // --------------------------------------------------------
     // ANALYZER
     // --------------------------------------------------------
 
     WiFiAnalyzerState analyzer;
+
+    // --------------------------------------------------------
+    // SECURITY
+    // --------------------------------------------------------
+
+    SecurityState security;
 
     // --------------------------------------------------------
     // LAN SCANNER
@@ -326,5 +394,8 @@ struct AppState {
 
     SystemMetrics system;
 };
+
+// Shared event-log writer, callable from any module (NetworkManager, SentinelWeb)
+void logEvent(uint8_t severity, const String& message);
 
 extern AppState appState;

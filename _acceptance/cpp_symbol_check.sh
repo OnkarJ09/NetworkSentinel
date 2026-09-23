@@ -33,31 +33,44 @@ has_definition() {
     return 1
 }
 
-# Extracts every method name declared inside `class Name { ... }` in the
-# given header. Project style wraps arguments across lines, so we join
-# continuation lines first. We then look for tokens of the form
-# `name(` that look like method declarations (return type before,
-# parenthesis after). We exclude constructors, destructors, access
-# keywords, and `operator*` overloads.
+# Extracts every method name declared inside `class Name { ... }` / `struct
+# Name { ... }` in the given header. Project style wraps arguments across
+# lines, so we join continuation lines first. We then look for tokens of the
+# form `name(` that look like method declarations (return type before,
+# parenthesis after). We exclude constructors, destructors, access keywords,
+# and `operator*` overloads.
+#
+# Only text inside a class/struct body is considered, and `//` comments are
+# stripped first, so comment prose like `... window (Phase 9)` and free
+# functions declared outside a class do not register as members.
 declared_methods() {
     local header="$1"
     awk '
         {
             line = $0
+            sub(/\/\/.*/, "", line)          # strip line comments
+            if (!inbody) {
+                if (line ~ /^[ \t]*(class|struct)[ \t]+[A-Za-z_]/) {
+                    inbody = 1
+                    depth = 0
+                } else {
+                    next
+                }
+            }
+            tmp = line
+            depth += gsub(/\{/, "", tmp) - gsub(/\}/, "", tmp)
             # Continuation: line ends with `,` (possibly with whitespace)
             if (match(line, /,[ \t]*$/)) {
                 sub(/,[ \t]*$/, "", line)
                 buf = buf line ", "
-                next
-            }
-            # Continuation: line ends with `(` (method opens)
-            if (match(line, /[(][ \t]*$/)) {
+            } else if (match(line, /[(][ \t]*$/)) {
                 sub(/[(][ \t]*$/, "( ", line)
                 buf = buf line
-                next
+            } else {
+                print buf line
+                buf = ""
             }
-            print buf line
-            buf = ""
+            if (depth <= 0) inbody = 0
         }
         END { if (buf != "") print buf }
     ' "$header" | grep -oE '[A-Za-z_][A-Za-z0-9_]*[ \t]*\(' | \

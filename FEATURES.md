@@ -242,14 +242,14 @@ Status:   ONLINE
 
 Once discovery works:
 
-* [ ] Device availability monitoring
-* [ ] Device disappearance detection
-* [ ] New-device detection
-* [ ] Device response latency
+* [x] Device availability monitoring
+* [x] Device disappearance detection
+* [x] New-device detection
+* [x] Device response latency
 * [ ] Device history
 * [ ] Device uptime estimate
-* [ ] Gateway monitoring
-* [ ] LAN health score
+* [x] Gateway monitoring
+* [x] LAN health score
 * [ ] Device count history
 
 Events:
@@ -269,17 +269,17 @@ Network Sentinel should eventually have its own event system.
 
 ### Events
 
-* [ ] Wi-Fi connected
-* [ ] Wi-Fi disconnected
+* [x] Wi-Fi connected
+* [x] Wi-Fi disconnected
 * [x] Internet lost
 * [x] Internet restored
 * [x] Gateway unreachable
 * [x] DNS failure
-* [ ] High latency
+* [x] High latency
 * [x] Packet-loss spike
-* [ ] New LAN device
-* [ ] LAN device offline
-* [ ] Network security change
+* [x] New LAN device
+* [x] LAN device offline
+* [x] Network security change
 * [x] Significant RSSI change
 
 ### Severity
@@ -320,10 +320,10 @@ This is where it becomes much more advanced.
 * [x] Detect unusually poor RSSI
 * [x] Detect latency anomalies
 * [x] Detect packet-loss anomalies
-* [ ] Detect intermittent connectivity
+* [x] Detect intermittent connectivity
 * [x] Calculate network health
 * [x] Calculate stability score
-* [ ] Recommend better Wi-Fi channels
+* [x] Recommend better Wi-Fi channels
 
 Example:
 
@@ -350,14 +350,14 @@ Keeping this on the **defensive monitoring** side:
 
 * [x] Open Wi-Fi detection
 * [x] Encryption-type monitoring
-* [ ] Unknown-network detection
-* [ ] New AP detection
-* [ ] AP disappearance detection
-* [ ] BSSID change detection
-* [ ] Suspicious network-change alerts
-* [ ] Known-network baseline
-* [ ] Rogue/unexpected AP indication
-* [ ] Security posture summary
+* [x] Unknown-network detection
+* [x] New AP detection
+* [x] AP disappearance detection
+* [x] BSSID change detection
+* [x] Suspicious network-change alerts
+* [x] Known-network baseline
+* [x] Rogue/unexpected AP indication
+* [x] Security posture summary
 
 Example:
 
@@ -685,12 +685,15 @@ Network Health   ████████████████████  D
 Web UI           ████████████████████  DONE
 History/Graphs   ████████████████████  DONE
 LAN Discovery    ████████████████████  DONE
-Events           ███████████░░░░░░░░░  IN PROGRESS
-Analytics        ██████████████░░░░░░  IN PROGRESS
-Security         ████░░░░░░░░░░░░░░░░  NEXT
-Storage          ░░░░░░░░░░░░░░░░░░░░
+LAN Monitoring   ████████████████████  DONE
+Events           ████████████████████  DONE
+Analytics        ████████████████████  DONE
+Security         ████████████████████  DONE
+Storage          ░░░░░░░░░░░░░░░░░░░░  NEXT
+Config           ░░░░░░░░░░░░░░░░░░░░
 OTA/Maintenance  ░░░░░░░░░░░░░░░░░░░░
+Reliability      ░░░░░░░░░░░░░░░░░░░░
 ```
 
-**Immediate next targets: finish the Event & Alert engine (Phase 8) and the
-OLED Events screen, then the Network Intelligence / Security items (Phases 9-10).**
+**Phases 1-10 complete. Immediate next targets: persistent storage (Phase 11,
+LittleFS config/event history) and web-based configuration (Phase 13).**

@@ -64,6 +64,8 @@ private:
 
     void computeHealthScore();
 
+    void analyzeSecurity();
+
     void broadcastHistory();
 
     String createJSON();

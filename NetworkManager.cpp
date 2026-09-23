@@ -1095,6 +1095,35 @@ void SentinelNetwork::calculateWiFiStatistics() {
     }
 
     // --------------------------------------------------------
+    // Recommended channel: least crowded of the 1/6/11 set
+    // --------------------------------------------------------
+
+    int bestChannel = 1;
+    int bestCount =
+        analyzer.channelCount[1];
+
+    int candidates[3] = {1, 6, 11};
+
+    for (int i = 0; i < 3; i++) {
+
+        int ch = candidates[i];
+
+        if (
+            analyzer.channelCount[ch] <
+            bestCount
+        ) {
+
+            bestCount =
+                analyzer.channelCount[ch];
+
+            bestChannel = ch;
+        }
+    }
+
+    analyzer.recommendedChannel =
+        bestChannel;
+
+    // --------------------------------------------------------
     // Complete
     // --------------------------------------------------------
 
@@ -1313,50 +1342,66 @@ void SentinelNetwork::scanLAN() {
         (uint32_t)appState.network.lanScanner.subnetEnd[3] -
         (uint32_t)appState.network.lanScanner.subnetStart[3] + 1;
 
-    // Clear old data
-    appState.network.lanScanner.deviceCount = 0;
+    // Keep known devices across scans; reset only the per-scan "seen" flag.
+    // online/latency retain last-scan values and are refreshed as hosts reply.
     appState.network.lanScanner.scannedHosts = 0;
 
     for (
         int i = 0;
-        i < MAX_LAN_DEVICES;
+        i < appState.network.lanScanner.deviceCount;
         i++
     ) {
 
-        appState.network.lanScanner.devices[i].online =
+        appState.network.lanScanner.devices[i].seenThisScan =
             false;
-
-        appState.network.lanScanner.devices[i].latency =
-            -1;
-
-        appState.network.lanScanner.devices[i].hostname =
-            "";
-
-        appState.network.lanScanner.devices[i].mac =
-            "";
-
-        appState.network.lanScanner.devices[i].lastSeen =
-            0;
-
-        appState.network.lanScanner.devices[i].firstSeen =
-            0;
     }
 
-    LANDevice& self =
-        appState.network.lanScanner.devices[
-            appState.network.lanScanner.deviceCount++
-        ];
+    // Register this device (find-or-add, so it isn't duplicated each scan)
+    LANDevice* self = nullptr;
 
-    self.ip = localIP;
-    self.hostname = "This device";
-    self.mac = WiFi.macAddress();
-    self.online = true;
-    self.latency = 0;
-    self.lastSeen = millis();
+    for (
+        int i = 0;
+        i < appState.network.lanScanner.deviceCount;
+        i++
+    ) {
 
-    if (self.firstSeen == 0) {
+        if (
+            appState.network.lanScanner.devices[i].ip ==
+            localIP
+        ) {
 
-        self.firstSeen = self.lastSeen;
+            self =
+                &appState.network.lanScanner.devices[i];
+
+            break;
+        }
+    }
+
+    if (self == nullptr) {
+
+        if (
+            appState.network.lanScanner.deviceCount <
+            MAX_LAN_DEVICES
+        ) {
+
+            self =
+                &appState.network.lanScanner.devices[
+                    appState.network.lanScanner.deviceCount++
+                ];
+
+            self->firstSeen = millis();
+        }
+    }
+
+    if (self != nullptr) {
+
+        self->ip = localIP;
+        self->hostname = "This device";
+        self->mac = WiFi.macAddress();
+        self->online = true;
+        self->latency = 0;
+        self->lastSeen = millis();
+        self->seenThisScan = true;
     }
 
     appState.network.lanScanner.scanning = true;
@@ -1409,6 +1454,53 @@ void SentinelNetwork::calculateLANStatistics() {
         scanner.scanning = false;
         scanner.scanComplete = true;
         scanner.lastScan = millis();
+
+        // Devices known but unseen this scan are now offline
+        for (
+            int i = 0;
+            i < scanner.deviceCount;
+            i++
+        ) {
+
+            LANDevice& d = scanner.devices[i];
+
+            if (d.seenThisScan) {
+                continue;
+            }
+
+            if (d.online) {
+
+                logEvent(
+                    EVENT_WARNING,
+                    "Device offline: " + d.ip.toString()
+                );
+            }
+
+            d.online = false;
+            d.latency = -1;
+        }
+
+        // LAN health: share of known devices currently online
+        int online = 0;
+
+        for (
+            int i = 0;
+            i < scanner.deviceCount;
+            i++
+        ) {
+
+            if (scanner.devices[i].online) {
+                online++;
+            }
+        }
+
+        scanner.healthScore =
+            scanner.deviceCount > 0
+                ? (uint8_t)(
+                    (online * 100) /
+                    scanner.deviceCount
+                )
+                : 0;
 
         Serial.println();
         Serial.println(
@@ -1544,29 +1636,59 @@ void SentinelNetwork::calculateLANStatistics() {
     }
 
     // --------------------------------------------------------
-    // Store device
+    // Store device (find-or-add by IP so scans don't duplicate)
     // --------------------------------------------------------
 
-    if (
-        scanner.deviceCount >=
-        MAX_LAN_DEVICES
+    bool isNew = true;
+    LANDevice* device = nullptr;
+
+    for (
+        int i = 0;
+        i < scanner.deviceCount;
+        i++
     ) {
 
-        return;
+        if (scanner.devices[i].ip == target) {
+
+            device = &scanner.devices[i];
+            isNew = false;
+            break;
+        }
     }
 
-    LANDevice& device =
-        scanner.devices[
-            scanner.deviceCount++
-        ];
+    if (device == nullptr) {
 
-    device.ip = target;
-    device.online = true;
-    device.latency = (float)elapsed;
-    device.lastSeen = millis();
+        if (scanner.deviceCount >= MAX_LAN_DEVICES) {
+            return;
+        }
 
-    if (device.firstSeen == 0) {
-        device.firstSeen = millis();
+        device =
+            &scanner.devices[scanner.deviceCount++];
+
+        device->firstSeen = millis();
+    }
+
+    bool wasOffline = !isNew && !device->online;
+
+    device->ip = target;
+    device->online = true;
+    device->latency = (float)elapsed;
+    device->lastSeen = millis();
+    device->seenThisScan = true;
+
+    if (isNew) {
+
+        logEvent(
+            EVENT_INFO,
+            "New device: " + target.toString()
+        );
+
+    } else if (wasOffline) {
+
+        logEvent(
+            EVENT_INFO,
+            "Device online: " + target.toString()
+        );
     }
 
     // --------------------------------------------------------
@@ -1584,7 +1706,7 @@ void SentinelNetwork::calculateLANStatistics() {
         name = "This device";
     }
 
-    device.hostname = name;
+    device->hostname = name;
 
     Serial.print("Found: ");
     Serial.print(target.toString());

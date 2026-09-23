@@ -6,6 +6,17 @@
 SentinelWeb sentinelWeb;
 
 // ============================================================
+// ALERT THRESHOLDS
+// ============================================================
+
+// Intermittent connectivity: N drops within the window triggers an event
+static constexpr uint32_t OUTAGE_WINDOW_MS = 300000; // 5 min
+static constexpr uint8_t OUTAGE_LIMIT = 3;
+
+// Sustained internet latency above this is a "high latency" alert
+static constexpr float HIGH_LATENCY_MS = 150.0f;
+
+// ============================================================
 // HTML
 // ============================================================
 
@@ -752,6 +763,66 @@ Weakest Signal
 
 </div>
 
+<div class="card">
+
+<div class="card-title">
+Recommended
+</div>
+
+<div
+    id="recommendedChannel"
+    class="value"
+>
+--
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="card-title">
+Security
+</div>
+
+<div
+    id="securityPosture"
+    class="value"
+>
+--
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="card-title">
+Unknown APs
+</div>
+
+<div
+    id="unknownAPs"
+    class="value"
+>
+--
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="card-title">
+Rogue APs
+</div>
+
+<div
+    id="rogueAPs"
+    class="value"
+>
+--
+</div>
+
+</div>
+
 </div>
 
 <div class="card">
@@ -811,6 +882,21 @@ Devices
 
 <div
     id="lanDeviceCount"
+    class="value"
+>
+--
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="card-title">
+LAN Health
+</div>
+
+<div
+    id="lanHealth"
     class="value"
 >
 --
@@ -1652,6 +1738,13 @@ function updateLAN(
         data.deviceCount;
 
     document.getElementById(
+        "lanHealth"
+    ).textContent =
+        (data.health !== undefined
+            ? data.health
+            : 0) + "%";
+
+    document.getElementById(
         "lanScanState"
     ).textContent =
         isTrue(data.scanning)
@@ -2185,6 +2278,56 @@ function updateLiveWiFi(
                 " dBm";
         }
     }
+
+    if (
+        data.recommendedChannel !== undefined
+    ) {
+        const el =
+            document.getElementById(
+                "recommendedChannel"
+            );
+        if (el) {
+            el.textContent =
+                "CH " +
+                data.recommendedChannel;
+        }
+    }
+
+    if (data.security) {
+        renderSecurity(data.security);
+    }
+}
+
+function renderSecurity(
+    sec
+) {
+
+    const set = (id, val) => {
+        const el =
+            document.getElementById(id);
+        if (el) {
+            el.textContent = val;
+        }
+    };
+
+    set(
+        "securityPosture",
+        sec.posture || "--"
+    );
+
+    set(
+        "unknownAPs",
+        sec.unknown !== undefined
+            ? sec.unknown
+            : 0
+    );
+
+    set(
+        "rogueAPs",
+        sec.rogue !== undefined
+            ? sec.rogue
+            : 0
+    );
 }
 
 function formatUptime(
@@ -2677,6 +2820,8 @@ void SentinelWeb::update() {
 
         lastWiFiBroadcast =
             now;
+
+        analyzeSecurity();
 
         broadcastWiFi();
     }
@@ -3178,7 +3323,53 @@ String SentinelWeb::createWiFiEventJSON() {
             a.scanning
                 ? "true"
                 : "false"
-        );
+        ) +
+        ",";
+
+    json +=
+        "\"recommendedChannel\":" +
+        String(
+            a.recommendedChannel
+        ) +
+        ",";
+
+    auto& sec =
+        appState.network.security;
+
+    json +=
+        "\"security\":{";
+
+    json +=
+        "\"posture\":\"" +
+        sec.posture +
+        "\",";
+
+    json +=
+        "\"open\":" +
+        String(sec.openCount) +
+        ",";
+
+    json +=
+        "\"unknown\":" +
+        String(sec.unknownAPs) +
+        ",";
+
+    json +=
+        "\"rogue\":" +
+        String(sec.rogueAPs) +
+        ",";
+
+    json +=
+        "\"disappeared\":" +
+        String(sec.disappeared) +
+        ",";
+
+    json +=
+        "\"known\":" +
+        String(sec.knownCount);
+
+    json +=
+        "}";
 
     json +=
         "}";
@@ -3795,28 +3986,7 @@ void SentinelWeb::recordEvent(
     const String& message
 ) {
 
-    EventEntry& entry =
-        appState.events[
-            appState.eventHead
-        ];
-
-    entry.timestamp = millis();
-    entry.severity = severity;
-    entry.message = message;
-
-    appState.eventHead =
-        (appState.eventHead + 1) % MAX_EVENTS;
-
-    if (appState.eventCount < MAX_EVENTS) {
-        appState.eventCount++;
-    }
-
-    // Print the event to Serial so the user can debug
-    Serial.print("[EVENT] ");
-    if (severity == EVENT_WARNING) Serial.print("WARN ");
-    else if (severity == EVENT_CRITICAL) Serial.print("CRIT ");
-    else Serial.print("INFO ");
-    Serial.println(message);
+    logEvent(severity, message);
 }
 
 // ============================================================
@@ -3827,6 +3997,8 @@ void SentinelWeb::detectOutages() {
 
     uint32_t now = millis();
 
+    bool dropped = false;
+
     // -------------------------------------------------------
     // WIFI
     // -------------------------------------------------------
@@ -3835,6 +4007,8 @@ void SentinelWeb::detectOutages() {
         appState.network.wifiWasConnected &&
         !appState.network.wifiConnected
     ) {
+
+        dropped = true;
 
         recordEvent(
             EVENT_WARNING,
@@ -3866,6 +4040,8 @@ void SentinelWeb::detectOutages() {
     ) {
 
         appState.network.lastInternetDown = now;
+
+        dropped = true;
 
         recordEvent(
             EVENT_WARNING,
@@ -3900,6 +4076,8 @@ void SentinelWeb::detectOutages() {
 
         appState.network.lastGatewayDown = now;
 
+        dropped = true;
+
         recordEvent(
             EVENT_WARNING,
             "Gateway unreachable"
@@ -3933,6 +4111,8 @@ void SentinelWeb::detectOutages() {
 
         appState.network.lastDnsDown = now;
 
+        dropped = true;
+
         recordEvent(
             EVENT_WARNING,
             "DNS failure"
@@ -3954,6 +4134,42 @@ void SentinelWeb::detectOutages() {
 
     appState.network.dnsWasOnline =
         appState.network.dnsOnline;
+
+    // -------------------------------------------------------
+    // INTERMITTENT CONNECTIVITY (Phase 9)
+    // -------------------------------------------------------
+
+    if (dropped) {
+
+        if (
+            appState.network.outageWindowStart == 0 ||
+            now - appState.network.outageWindowStart >
+                OUTAGE_WINDOW_MS
+        ) {
+
+            appState.network.outageWindowStart = now;
+            appState.network.outageCount = 0;
+            appState.network.intermittentReported = false;
+        }
+
+        if (appState.network.outageCount < 255) {
+            appState.network.outageCount++;
+        }
+
+        if (
+            appState.network.outageCount >=
+                OUTAGE_LIMIT &&
+            !appState.network.intermittentReported
+        ) {
+
+            appState.network.intermittentReported = true;
+
+            recordEvent(
+                EVENT_WARNING,
+                "Intermittent connectivity detected"
+            );
+        }
+    }
 }
 
 // ============================================================
@@ -4046,6 +4262,30 @@ void SentinelWeb::detectSpikes() {
         }
     }
 
+    // -------------------------------------------------------
+    // High latency: sustained, above threshold (edge-triggered)
+    // -------------------------------------------------------
+
+    bool high =
+        appState.network.internetOnline &&
+        appState.network.internetPing >= HIGH_LATENCY_MS;
+
+    if (
+        high &&
+        !appState.network.highLatencyActive
+    ) {
+
+        recordEvent(
+            EVENT_WARNING,
+            "High latency: " +
+                String(
+                    (int)appState.network.internetPing
+                ) + " ms"
+        );
+    }
+
+    appState.network.highLatencyActive = high;
+
     appState.lastPing = appState.network.internetPing;
     appState.lastRssi = appState.network.rssi;
     appState.lastLoss = appState.network.packetLoss;
@@ -4105,6 +4345,172 @@ void SentinelWeb::computeHealthScore() {
 
     appState.network.healthScore =
         (uint8_t)health;
+}
+
+// ============================================================
+// SECURITY ANALYSIS (Phase 10)
+// ============================================================
+
+void SentinelWeb::analyzeSecurity() {
+
+    auto& analyzer =
+        appState.network.analyzer;
+
+    auto& sec =
+        appState.network.security;
+
+    // Run once per completed scan
+    if (
+        analyzer.lastScan == sec.lastAnalysis ||
+        analyzer.networkCount == 0
+    ) {
+        return;
+    }
+
+    sec.lastAnalysis = analyzer.lastScan;
+
+    bool baseline = (sec.knownCount == 0);
+
+    for (int i = 0; i < sec.knownCount; i++) {
+        sec.known[i].seen = false;
+    }
+
+    int unknown = 0;
+    int rogue = 0;
+    int open = 0;
+
+    for (
+        int i = 0;
+        i < analyzer.networkCount;
+        i++
+    ) {
+
+        WiFiNetworkInfo& n =
+            analyzer.networks[i];
+
+        if (n.security == "OPEN") {
+            open++;
+        }
+
+        // Find by BSSID
+        int ki = -1;
+        for (int k = 0; k < sec.knownCount; k++) {
+            if (sec.known[k].bssid == n.bssid) {
+                ki = k;
+                break;
+            }
+        }
+
+        if (ki >= 0) {
+
+            sec.known[ki].seen = true;
+
+            // Encryption type changed on a known AP
+            if (
+                !baseline &&
+                sec.known[ki].security != n.security
+            ) {
+
+                logEvent(
+                    EVENT_WARNING,
+                    "Security change: " +
+                        (n.ssid.length()
+                             ? n.ssid
+                             : n.bssid)
+                );
+            }
+
+            sec.known[ki].security = n.security;
+            sec.known[ki].ssid = n.ssid;
+
+            continue;
+        }
+
+        // New BSSID
+        unknown++;
+
+        // Same SSID, different BSSID => possible rogue / evil twin
+        bool ssidMatch = false;
+        if (n.ssid.length() > 0) {
+            for (int k = 0; k < sec.knownCount; k++) {
+                if (sec.known[k].ssid == n.ssid) {
+                    ssidMatch = true;
+                    break;
+                }
+            }
+        }
+
+        if (ssidMatch && !baseline) {
+
+            rogue++;
+
+            logEvent(
+                EVENT_WARNING,
+                "Rogue AP: " + n.ssid
+            );
+
+        } else if (!baseline) {
+
+            logEvent(
+                EVENT_INFO,
+                "New AP: " +
+                    (n.ssid.length()
+                         ? n.ssid
+                         : n.bssid)
+            );
+        }
+
+        if (sec.knownCount < MAX_KNOWN_APS) {
+
+            KnownAP& k =
+                sec.known[sec.knownCount++];
+
+            k.bssid = n.bssid;
+            k.ssid = n.ssid;
+            k.security = n.security;
+            k.seen = true;
+        }
+    }
+
+    // Disappeared APs (known baseline entries not seen this scan)
+    int disappeared = 0;
+    if (!baseline) {
+        for (int k = 0; k < sec.knownCount; k++) {
+            if (!sec.known[k].seen) {
+                disappeared++;
+            }
+        }
+    }
+
+    sec.unknownAPs = unknown;
+    sec.rogueAPs = rogue;
+    sec.disappeared = disappeared;
+    sec.openCount = open;
+
+    if (rogue > 0 || open > 0) {
+        sec.posture = "WARNING";
+    } else if (unknown > 3) {
+        sec.posture = "WATCH";
+    } else {
+        sec.posture = "GOOD";
+    }
+
+    // Edge-triggered summary events
+    if (rogue > 0 && sec.prevRogue == 0) {
+        logEvent(
+            EVENT_CRITICAL,
+            "Rogue AP detected"
+        );
+    }
+    if (open > 0 && sec.prevOpen == 0) {
+        logEvent(
+            EVENT_WARNING,
+            "Open network detected"
+        );
+    }
+
+    sec.prevRogue = rogue;
+    sec.prevOpen = open;
 }
 
 // ============================================================
@@ -4241,6 +4647,11 @@ String SentinelWeb::createLANJSON() {
     json +=
         "\"deviceCount\":" +
         String(scanner.deviceCount) +
+        ",";
+
+    json +=
+        "\"health\":" +
+        String(scanner.healthScore) +
         ",";
 
     json +=
