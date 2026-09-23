@@ -857,6 +857,19 @@ Security
 
 </div>
 
+<div class="card">
+
+<div class="card-title">
+Channel Usage
+</div>
+
+<canvas
+    id="channelCanvas"
+    style="width: 100%; height: 160px;"
+></canvas>
+
+</div>
+
 </section>
 
 <section
@@ -2417,6 +2430,59 @@ function updateLiveWiFi(
     if (data.security) {
         renderSecurity(data.security);
     }
+
+    if (data.channels) {
+        drawChannelChart(data.channels);
+    }
+}
+
+function drawChannelChart(values) {
+
+    const canvas =
+        document.getElementById("channelCanvas");
+
+    if (!canvas || !canvas.getContext) {
+        return;
+    }
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+        return;
+    }
+
+    canvas.width = canvas.clientWidth || 600;
+    canvas.height = 160;
+
+    const w = canvas.width;
+    const h = canvas.height;
+    const n = values.length;
+
+    ctx.clearRect(0, 0, w, h);
+
+    let max = 1;
+    for (let i = 0; i < n; i++) {
+        if (values[i] > max) {
+            max = values[i];
+        }
+    }
+
+    const barW = w / n;
+
+    for (let i = 0; i < n; i++) {
+
+        const bh = (values[i] / max) * (h - 24);
+
+        ctx.fillStyle = "#3498db";
+        ctx.fillRect(i * barW + 2, h - 16 - bh, barW - 4, bh);
+
+        ctx.fillStyle = "#888";
+        ctx.fillText(String(i + 1), i * barW + 4, h - 4);
+
+        if (values[i] > 0) {
+            ctx.fillStyle = "#fff";
+            ctx.fillText(String(values[i]), i * barW + 4, h - 20 - bh);
+        }
+    }
 }
 
 function renderSecurity(
@@ -3861,7 +3927,25 @@ String SentinelWeb::createWiFiEventJSON() {
         String(sec.knownCount);
 
     json +=
-        "}";
+        "},";
+
+    // AP count per channel, index 1..MAX_WIFI_CHANNELS
+    json += "\"channels\":[";
+
+    for (
+        int ch = 1;
+        ch <= MAX_WIFI_CHANNELS;
+        ch++
+    ) {
+
+        if (ch > 1) {
+            json += ",";
+        }
+
+        json += String(a.channelCount[ch]);
+    }
+
+    json += "]";
 
     json +=
         "}";
