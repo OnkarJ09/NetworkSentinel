@@ -93,6 +93,62 @@ bool parseEventLine(
 }
 
 // ============================================================
+// PARSE DEVICE LINE
+// ============================================================
+
+static IPAddress parseIP(const String& s) {
+
+    int parts[4] = {0, 0, 0, 0};
+    int idx = 0;
+    int start = 0;
+    int len = s.length();
+
+    for (int i = 0; i <= len && idx < 4; i++) {
+
+        if (i == len || s.charAt(i) == '.') {
+
+            parts[idx++] =
+                s.substring(start, i).toInt();
+
+            start = i + 1;
+        }
+    }
+
+    return IPAddress(
+        parts[0], parts[1], parts[2], parts[3]
+    );
+}
+
+bool parseDeviceLine(
+    const String& raw,
+    LANDevice& out
+) {
+
+    String line = raw;
+    line.trim();
+
+    int p1 = line.indexOf('|');
+    if (p1 < 0) return false;
+
+    int n2 = line.substring(p1 + 1).indexOf('|');
+    if (n2 < 0) return false;
+    int p2 = p1 + 1 + n2;
+
+    int n3 = line.substring(p2 + 1).indexOf('|');
+    if (n3 < 0) return false;
+    int p3 = p2 + 1 + n3;
+
+    out.ip = parseIP(line.substring(0, p1));
+    out.hostname = line.substring(p1 + 1, p2);
+    out.firstSeen =
+        (uint32_t)line.substring(p2 + 1, p3).toInt();
+    out.lastSeen =
+        (uint32_t)line.substring(p3 + 1).toInt();
+
+    return true;
+}
+
+// ============================================================
 // BEGIN
 // ============================================================
 

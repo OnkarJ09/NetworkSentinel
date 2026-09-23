@@ -406,4 +406,7 @@ void eventsReset();
 // Parse one "timestamp|severity|message" line. Used by the loader and host tests.
 bool parseEventLine(const String& line, EventEntry& out);
 
+// Parse one "ip|hostname|firstSeen|lastSeen" line. Used by the LAN loader and host tests.
+bool parseDeviceLine(const String& line, LANDevice& out);
+
 extern AppState appState;

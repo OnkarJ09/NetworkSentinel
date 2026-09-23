@@ -35,6 +35,10 @@ public:
 
     void calculateLANStatistics();
 
+    void loadLANDevices();
+
+    void saveLANDevices();
+
 private:
 
     void connectWiFi();

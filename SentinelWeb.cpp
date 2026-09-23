@@ -5326,6 +5326,9 @@ void SentinelWeb::handleFactoryReset() {
 
     eventsReset();
 
+    LittleFS.remove("/known_aps.txt");
+    LittleFS.remove("/lan_devices.txt");
+
     logEvent(
         EVENT_WARNING,
         "Factory reset"

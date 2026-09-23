@@ -5,6 +5,8 @@
 
 #include <WiFi.h>
 
+#include <LittleFS.h>
+
 SentinelNetwork sentinelNetwork;
 
 // ============================================================
@@ -18,6 +20,8 @@ static constexpr uint32_t NETWORK_INTERVAL = 10000;
 // ============================================================
 
 void SentinelNetwork::begin() {
+
+    loadLANDevices();
 
     WiFi.mode(
         WIFI_STA
@@ -1437,6 +1441,81 @@ bool SentinelNetwork::isLANScanning() {
     return appState.network.lanScanner.scanning;
 }
 
+// ============================================================
+// LAN DEVICE PERSISTENCE
+// ============================================================
+
+static const char* LAN_DEVICES_PATH = "/lan_devices.txt";
+
+void SentinelNetwork::loadLANDevices() {
+
+    auto& scanner =
+        appState.network.lanScanner;
+
+    if (!LittleFS.exists(LAN_DEVICES_PATH)) {
+        return;
+    }
+
+    File file =
+        LittleFS.open(LAN_DEVICES_PATH, "r");
+
+    if (!file) {
+        return;
+    }
+
+    while (
+        file.available() &&
+        scanner.deviceCount < MAX_LAN_DEVICES
+    ) {
+
+        LANDevice device;
+
+        if (!parseDeviceLine(
+                file.readStringUntil('\n'),
+                device
+            )) {
+            continue;
+        }
+
+        // Known until the next scan says otherwise
+        device.online = false;
+        device.latency = -1;
+        device.seenThisScan = false;
+
+        scanner.devices[scanner.deviceCount++] = device;
+    }
+
+    file.close();
+}
+
+void SentinelNetwork::saveLANDevices() {
+
+    auto& scanner =
+        appState.network.lanScanner;
+
+    File file =
+        LittleFS.open(LAN_DEVICES_PATH, "w");
+
+    if (!file) {
+        return;
+    }
+
+    for (int i = 0; i < scanner.deviceCount; i++) {
+
+        LANDevice& d = scanner.devices[i];
+
+        file.print(d.ip.toString());
+        file.print('|');
+        file.print(d.hostname);
+        file.print('|');
+        file.print(d.firstSeen);
+        file.print('|');
+        file.println(d.lastSeen);
+    }
+
+    file.close();
+}
+
 void SentinelNetwork::calculateLANStatistics() {
 
     auto& scanner =
@@ -1501,6 +1580,8 @@ void SentinelNetwork::calculateLANStatistics() {
                     scanner.deviceCount
                 )
                 : 0;
+
+        saveLANDevices();
 
         Serial.println();
         Serial.println(

@@ -76,5 +76,22 @@ int main() {
     assert(!parseEventLine("1|only-two", e));
 
     printf("event parser OK\n");
+
+    // ------------------------------------------------------
+    // LAN device line parser
+    // ------------------------------------------------------
+    LANDevice l;
+
+    assert(parseDeviceLine("192.168.1.5|my-pc|1000|2000", l));
+    assert(l.ip == IPAddress(192, 168, 1, 5));
+    assert(l.hostname == "my-pc");
+    assert(l.firstSeen == 1000);
+    assert(l.lastSeen == 2000);
+
+    assert(!parseDeviceLine("", l));
+    assert(!parseDeviceLine("192.168.1.5|my-pc|1000", l));
+    assert(!parseDeviceLine("no-pipes-at-all", l));
+
+    printf("device parser OK\n");
     return 0;
 }

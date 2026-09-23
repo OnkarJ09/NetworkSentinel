@@ -65,13 +65,24 @@ private:
 
 class IPAddress {
 public:
-    IPAddress() {}
-    IPAddress(uint8_t, uint8_t, uint8_t, uint8_t) {}
-    IPAddress(const IPAddress&) {}
-    String toString() const { return String(); }
-    operator uint32_t() const { return 0; }
-    uint8_t operator[](int) const { return 0; }
-    uint8_t& operator[](int) { static uint8_t v; return v; }
+    IPAddress() { o[0]=o[1]=o[2]=o[3]=0; }
+    IPAddress(uint8_t a, uint8_t b, uint8_t c, uint8_t d) { o[0]=a; o[1]=b; o[2]=c; o[3]=d; }
+    IPAddress(const IPAddress& v) { for (int i=0;i<4;i++) o[i]=v.o[i]; }
+    IPAddress& operator=(const IPAddress& v) { for (int i=0;i<4;i++) o[i]=v.o[i]; return *this; }
+    String toString() const {
+        return String((int)o[0]) + "." + String((int)o[1]) + "." +
+               String((int)o[2]) + "." + String((int)o[3]);
+    }
+    operator uint32_t() const {
+        return ((uint32_t)o[0] << 24) | ((uint32_t)o[1] << 16) |
+               ((uint32_t)o[2] << 8) | (uint32_t)o[3];
+    }
+    bool operator==(const IPAddress& v) const { return (uint32_t)(*this) == (uint32_t)v; }
+    bool operator!=(const IPAddress& v) const { return !(*this == v); }
+    uint8_t operator[](int i) const { return o[i & 3]; }
+    uint8_t& operator[](int i) { return o[i & 3]; }
+private:
+    uint8_t o[4];
 };
 
 inline unsigned long millis() { return 0; }
