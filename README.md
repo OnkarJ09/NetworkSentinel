@@ -265,10 +265,24 @@ Access the web interface at: `http://[ESP32_IP_ADDRESS]`
 - **Network Overview**: Connection status, signal strength, packet loss
 
 ### API Endpoints
-- `GET /api/telemetry` - Current telemetry data (JSON)
-- `GET /api/history` - Historical telemetry data (JSON)
-- `GET /api/networks` - Scanned Wi-Fi networks (JSON)
-- `GET /api/devices` - Discovered LAN devices (JSON)
+- `GET /api` - dashboard snapshot (network, system, health)
+- `GET /api/wifi` - scanned Wi-Fi networks
+- `POST /api/wifi/scan` - start a Wi-Fi scan
+- `GET /api/lan` - discovered LAN devices
+- `GET /api/lan/scan` - start a LAN scan
+- `GET /api/events` - event log
+- `GET /api/config` / `POST /api/config` - read / update settings
+- `GET /api/debug` - diagnostics counters
+- `POST /api/restart` - reboot
+- `POST /api/reset` - factory reset
+
+WebSocket (`ws://[IP]:81`) pushes `telemetry`, `wifi`, `history`, `lan`, `events`.
+
+### Flash Files
+- `/config.txt` - runtime settings (key=value)
+- `/known_aps.txt` - known-AP security baseline
+- `/lan_devices.txt` - LAN device history
+- `/events.txt` - event log (trimmed to the last 32 on boot)
 
 ## Project Structure
 
@@ -341,10 +355,9 @@ Settings: `lanScanIntervalMs`, `highLatencyMs`, `outageWindowMs`,
 - Automatic screen rotation (optional feature)
 
 ### WebSocket Communication
-- Binary JSON format for efficiency
-- Automatic reconnection handling
-- Data compression for historical transfers
-- Fallback to polling for incompatible clients
+- JSON text frames, one per message, tagged by `type`
+- Browser client auto-reconnects on disconnect
+- Falls back to REST polling (`refresh()`) for the initial load
 
 ## Customization
 

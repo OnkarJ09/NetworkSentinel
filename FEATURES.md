@@ -381,11 +381,11 @@ Possible storage:
 
 * [x] LittleFS configuration
 * [ ] Saved network profiles
-* [ ] Event history
-* [ ] Device history
+* [x] Event history
+* [x] Device history
 * [x] User preferences
 * [x] Threshold configuration
-* [ ] Known AP database
+* [x] Known AP database
 
 Potential architecture:
 
@@ -492,10 +492,10 @@ Eventually:
 ### Wi-Fi
 
 * [x] AP table
-* [ ] Channel chart
+* [x] Channel chart
 * [x] RSSI chart
 * [x] Security overview
-* [ ] Scan controls
+* [x] Scan controls
 
 ### LAN
 
@@ -517,8 +517,8 @@ Eventually:
 
 * [x] Timeline
 * [x] Severity
-* [ ] Filtering
-* [ ] Search
+* [x] Filtering
+* [x] Search
 
 ### System
 
@@ -526,7 +526,7 @@ Eventually:
 * [x] Memory
 * [x] CPU
 * [x] Uptime
-* [ ] Firmware
+* [x] Firmware
 
 ---
 
@@ -568,14 +568,14 @@ You can move between pages without touching the browser.
 
 Eventually:
 
-* [ ] OTA firmware updates
-* [ ] Firmware version display
-* [ ] Web-based restart
-* [ ] Factory reset
-* [ ] Configuration backup
-* [ ] Configuration restore
-* [ ] Diagnostics
-* [ ] Debug mode
+* [x] OTA firmware updates
+* [x] Firmware version display
+* [x] Web-based restart
+* [x] Factory reset
+* [x] Configuration backup
+* [x] Configuration restore
+* [x] Diagnostics
+* [x] Debug mode
 
 ---
 
@@ -583,7 +583,7 @@ Eventually:
 
 Before calling it a finished appliance:
 
-* [ ] Watchdog handling
+* [x] Watchdog handling
 * [x] Automatic Wi-Fi recovery
 * [x] WebSocket recovery
 * [ ] Memory leak testing
@@ -699,12 +699,13 @@ LAN Monitoring   ████████████████████  D
 Events           ████████████████████  DONE
 Analytics        ████████████████████  DONE
 Security         ████████████████████  DONE
-Storage          ███████░░░░░░░░░░░░░  IN PROGRESS
-Config           ████████████████░░░░  IN PROGRESS
-OTA/Maintenance  ░░░░░░░░░░░░░░░░░░░░  NEXT
-Reliability      ░░░░░░░░░░░░░░░░░░░░
+Storage          ██████████████████░░  DONE
+Config           ████████████████████  DONE
+OTA/Maintenance  ████████████████████  DONE
+Reliability      ████████████████████  DONE
 ```
 
-**Phases 1-10 complete; Phase 11 (config persistence) and Phase 13 (web
-configuration) largely done. Remaining storage work: persisted event/device
-history and a saved known-AP database.**
+**Phases 1-16 and the code side of Phase 17 are complete. What remains is
+physical validation on the device (long-run, disconnect, router-reboot and
+stress tests) plus optional extras: multi-profile Wi-Fi, CPU temperature
+(not exposed on ESP32-S3).**
