@@ -2843,6 +2843,24 @@ void SentinelWeb::update() {
     }
 
     // ========================================================
+    // AUTOMATIC LAN SCAN
+    // ========================================================
+
+    auto& scanner =
+        appState.network.lanScanner;
+
+    scanner.autoScanning = true;
+
+    if (
+        !scanner.scanning &&
+        appState.network.wifiConnected &&
+        now - scanner.lastScan >= LAN_SCAN_INTERVAL_MS
+    ) {
+
+        sentinelNetwork.scanLAN();
+    }
+
+    // ========================================================
     // EVENTS
     // ========================================================
 
