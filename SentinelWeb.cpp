@@ -1158,6 +1158,16 @@ Packet Loss
 Event Log
 </h1>
 
+<div style="margin-bottom: 12px;">
+<select id="eventFilter" onchange="renderEvents()">
+<option value="ALL">All severities</option>
+<option value="INFO">Info</option>
+<option value="WARNING">Warning</option>
+<option value="CRITICAL">Critical</option>
+</select>
+<input id="eventSearch" placeholder="Search..." oninput="renderEvents()">
+</div>
+
 <div class="card">
 
 <div
@@ -2765,19 +2775,24 @@ function addTelemetryToHistory(data) {
     drawAllGraphs();
 }
 
+let allEvents = [];
+
 function updateEvents(
     data
 ) {
+
+    allEvents = data.events || [];
+    renderEvents();
+}
+
+function renderEvents() {
 
     const list =
         document.getElementById(
             "eventList"
         );
 
-    if (
-        !data.events ||
-        data.events.length === 0
-    ) {
+    if (allEvents.length === 0) {
 
         list.innerHTML =
             '<div class="label">' +
@@ -2787,17 +2802,49 @@ function updateEvents(
         return;
     }
 
+    const filterEl =
+        document.getElementById(
+            "eventFilter"
+        );
+
+    const filter =
+        filterEl && filterEl.value
+            ? filterEl.value
+            : "ALL";
+
+    const searchEl =
+        document.getElementById(
+            "eventSearch"
+        );
+
+    const query =
+        searchEl && searchEl.value
+            ? searchEl.value.toLowerCase()
+            : "";
+
     let html = "";
 
     for (let i = 0;
-         i < data.events.length;
+         i < allEvents.length;
          i++) {
 
-        const e = data.events[i];
+        const e = allEvents[i];
 
-        // Bug-fix #5: producer emits severity as a string
-        // ("INFO"/"WARNING"/"CRITICAL"), not a number. Compare
-        // against strings so warning/critical colors actually render.
+        if (filter !== "ALL" && e.severity !== filter) {
+            continue;
+        }
+
+        if (
+            query &&
+            String(e.message || "")
+                .toLowerCase()
+                .indexOf(query) < 0
+        ) {
+            continue;
+        }
+
+        // Producer emits severity as a string
+        // ("INFO"/"WARNING"/"CRITICAL"), not a number.
         const color =
             e.severity === "CRITICAL"
                 ? "#e74c3c"
@@ -2827,6 +2874,13 @@ function updateEvents(
             "</div>";
 
         html += "</div>";
+    }
+
+    if (html === "") {
+        html =
+            '<div class="label">' +
+            "No matching events." +
+            "</div>";
     }
 
     list.innerHTML = html;
