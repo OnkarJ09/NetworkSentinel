@@ -49,6 +49,10 @@ private:
 
     void handleEvents();
 
+    void handleConfig();
+
+    void handleConfigPost();
+
     void handleNotFound();
 
     void recordTelemetry();
@@ -81,6 +85,8 @@ private:
     String createLANJSON();
 
     String createEventsJSON();
+
+    String createConfigJSON();
 
     uint32_t lastTelemetryBroadcast = 0;
 

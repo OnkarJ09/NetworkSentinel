@@ -74,6 +74,7 @@ captureProducer('String SentinelWeb::createWiFiJSON', '/api/wifi');
 captureProducer('String SentinelWeb::createHistoryJSON', 'history');
 captureProducer('String SentinelWeb::createEventsJSON', 'events');
 captureProducer('String SentinelWeb::createLANJSON', 'lan');
+captureProducer('String SentinelWeb::createConfigJSON', 'config');
 captureProducer('String SentinelWeb::createJSON', '/api');
 
 console.log('Producers found:', Object.keys(producerFields));
@@ -112,6 +113,7 @@ const fnToProducer = {
     updateLAN: 'lan',
     updateEvents: 'events',
     updateHistory: 'history',
+    updateConfig: 'config',
 };
 
 const readerFields = {};

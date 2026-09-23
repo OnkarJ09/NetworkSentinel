@@ -1282,6 +1282,41 @@ System History
 </div>
 </div>
 
+<h2 style="margin-top: 32px;">
+Configuration
+</h2>
+<div class="card">
+<div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+<div>
+<div class="card-title">LAN scan interval (ms)</div>
+<input id="cfgLanScanIntervalMs" type="number" class="value">
+</div>
+<div>
+<div class="card-title">High latency threshold (ms)</div>
+<input id="cfgHighLatencyMs" type="number" class="value">
+</div>
+<div>
+<div class="card-title">Outage window (ms)</div>
+<input id="cfgOutageWindowMs" type="number" class="value">
+</div>
+<div>
+<div class="card-title">Outage count limit</div>
+<input id="cfgOutageLimit" type="number" class="value">
+</div>
+<div>
+<div class="card-title">Automatic LAN scan</div>
+<label class="value">
+<input id="cfgLanAutoScan" type="checkbox">
+ Enabled
+</label>
+</div>
+</div>
+<div style="margin-top: 16px;">
+<button onclick="saveConfig()">Save Configuration</button>
+<span id="cfgStatus" class="label"></span>
+</div>
+</div>
+
 </section>
 
 </main>
@@ -2320,10 +2355,129 @@ function renderSecurity(
     );
 }
 
+function updateConfig(
+    data
+) {
+
+    document.getElementById(
+        "cfgLanScanIntervalMs"
+    ).value =
+        data.lanScanIntervalMs;
+
+    document.getElementById(
+        "cfgHighLatencyMs"
+    ).value =
+        data.highLatencyMs;
+
+    document.getElementById(
+        "cfgOutageWindowMs"
+    ).value =
+        data.outageWindowMs;
+
+    document.getElementById(
+        "cfgOutageLimit"
+    ).value =
+        data.outageLimit;
+
+    document.getElementById(
+        "cfgLanAutoScan"
+    ).checked =
+        isTrue(data.lanAutoScan);
+}
+
+function loadConfigForm() {
+
+    fetch("/api/config")
+        .then(
+            response => response.json()
+        )
+        .then(
+            updateConfig
+        )
+        .catch(
+            () => {}
+        );
+}
+
+function saveConfig() {
+
+    const status =
+        document.getElementById(
+            "cfgStatus"
+        );
+
+    const body =
+        new URLSearchParams();
+
+    body.append(
+        "lanScanIntervalMs",
+        document.getElementById(
+            "cfgLanScanIntervalMs"
+        ).value
+    );
+
+    body.append(
+        "highLatencyMs",
+        document.getElementById(
+            "cfgHighLatencyMs"
+        ).value
+    );
+
+    body.append(
+        "outageWindowMs",
+        document.getElementById(
+            "cfgOutageWindowMs"
+        ).value
+    );
+
+    body.append(
+        "outageLimit",
+        document.getElementById(
+            "cfgOutageLimit"
+        ).value
+    );
+
+    body.append(
+        "lanAutoScan",
+        document.getElementById(
+            "cfgLanAutoScan"
+        ).checked
+            ? "1"
+            : "0"
+    );
+
+    status.textContent = "Saving...";
+
+    fetch(
+        "/api/config",
+        {
+            method: "POST",
+            headers: {
+                "Content-Type":
+                    "application/x-www-form-urlencoded"
+            },
+            body: body.toString()
+        }
+    )
+        .then(
+            response => response.json()
+        )
+        .then(
+            data => {
+                updateConfig(data);
+                status.textContent = "Saved";
+            }
+        )
+        .catch(
+            () => {
+                status.textContent = "Save failed";
+            }
+        );
+}
+
 function formatUptime(
     milliseconds
 ) {
-
     let seconds =
         Math.floor(
             milliseconds / 1000
@@ -2703,6 +2857,9 @@ window.addEventListener("resize", drawAllGraphs);
 // Initial REST load
 refresh();
 
+// Config form
+loadConfigForm();
+
 // Live WebSocket connection
 connectWebSocket();
 
@@ -2923,6 +3080,22 @@ void SentinelWeb::setupRoutes() {
         HTTP_GET,
         [this]() {
             handleEvents();
+        }
+    );
+
+    server.on(
+        "/api/config",
+        HTTP_GET,
+        [this]() {
+            handleConfig();
+        }
+    );
+
+    server.on(
+        "/api/config",
+        HTTP_POST,
+        [this]() {
+            handleConfigPost();
         }
     );
 
@@ -4569,6 +4742,43 @@ String SentinelWeb::createEventsJSON() {
     return json;
 }
 
+String SentinelWeb::createConfigJSON() {
+
+    String json = "{";
+
+    json +=
+        "\"lanScanIntervalMs\":" +
+        String(sentinelConfig.lanScanIntervalMs) +
+        ",";
+
+    json +=
+        "\"highLatencyMs\":" +
+        String(sentinelConfig.highLatencyMs) +
+        ",";
+
+    json +=
+        "\"outageWindowMs\":" +
+        String(sentinelConfig.outageWindowMs) +
+        ",";
+
+    json +=
+        "\"outageLimit\":" +
+        String(sentinelConfig.outageLimit) +
+        ",";
+
+    json +=
+        "\"lanAutoScan\":" +
+        String(
+            sentinelConfig.lanAutoScan
+                ? "true"
+                : "false"
+        );
+
+    json += "}";
+
+    return json;
+}
+
 void SentinelWeb::broadcastEvents() {
 
     if (webSocket.connectedClients() == 0) {
@@ -4586,6 +4796,50 @@ void SentinelWeb::handleEvents() {
         200,
         "application/json",
         createEventsJSON()
+    );
+}
+
+void SentinelWeb::handleConfig() {
+
+    server.send(
+        200,
+        "application/json",
+        createConfigJSON()
+    );
+}
+
+void SentinelWeb::handleConfigPost() {
+
+    static const char* keys[] = {
+        "lanScanIntervalMs",
+        "highLatencyMs",
+        "outageWindowMs",
+        "outageLimit",
+        "lanAutoScan"
+    };
+
+    for (const char* key : keys) {
+
+        if (server.hasArg(key)) {
+
+            configApplyLine(
+                String(key) + "=" +
+                server.arg(key)
+            );
+        }
+    }
+
+    configSave();
+
+    logEvent(
+        EVENT_INFO,
+        "Configuration updated"
+    );
+
+    server.send(
+        200,
+        "application/json",
+        createConfigJSON()
     );
 }
 
