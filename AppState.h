@@ -190,8 +190,7 @@ struct SecurityState {
 
     uint32_t lastAnalysis = 0;
 
-    // ponytail: RAM-only baseline, resets on reboot.
-    // Persist in LittleFS when Phase 11 lands.
+    // Persisted to /known_aps.txt so the baseline survives reboots.
 };
 
 // ============================================================

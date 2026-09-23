@@ -12,6 +12,7 @@ public:
     String readStringUntil(char) { return String(); }
     size_t print(const String&) { return 0; }
     size_t print(const char*) { return 0; }
+    size_t print(char) { return 0; }
     size_t print(int) { return 0; }
     size_t print(unsigned int) { return 0; }
     size_t print(long) { return 0; }

@@ -74,6 +74,10 @@ private:
 
     void analyzeSecurity();
 
+    void loadSecurityBaseline();
+
+    void saveSecurityBaseline();
+
     void broadcastHistory();
 
     String createJSON();

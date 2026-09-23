@@ -4,6 +4,8 @@
 #include "NetworkManager.h"
 #include "Config.h"
 
+#include <LittleFS.h>
+
 SentinelWeb sentinelWeb;
 
 // ============================================================
@@ -2979,6 +2981,8 @@ connectWebSocket();
 
 void SentinelWeb::begin() {
 
+    loadSecurityBaseline();
+
     setupRoutes();
 
     setupWebSocket();
@@ -4696,6 +4700,84 @@ void SentinelWeb::computeHealthScore() {
 // SECURITY ANALYSIS (Phase 10)
 // ============================================================
 
+// ============================================================
+// SECURITY BASELINE PERSISTENCE (Phase 11)
+// ============================================================
+
+static const char* KNOWN_APS_PATH = "/known_aps.txt";
+
+void SentinelWeb::loadSecurityBaseline() {
+
+    auto& sec =
+        appState.network.security;
+
+    if (!LittleFS.exists(KNOWN_APS_PATH)) {
+        return;
+    }
+
+    File file =
+        LittleFS.open(KNOWN_APS_PATH, "r");
+
+    if (!file) {
+        return;
+    }
+
+    while (
+        file.available() &&
+        sec.knownCount < MAX_KNOWN_APS
+    ) {
+
+        String line =
+            file.readStringUntil('\n');
+        line.trim();
+
+        // Format: bssid|ssid|security
+        int p1 = line.indexOf('|');
+        if (p1 <= 0) continue;
+
+        int p2 = line.indexOf('|');
+
+        // second separator is the one after p1
+        int searchFrom = p1 + 1;
+        int next = line.substring(searchFrom).indexOf('|');
+        if (next < 0) continue;
+        p2 = searchFrom + next;
+
+        KnownAP& k =
+            sec.known[sec.knownCount++];
+
+        k.bssid = line.substring(0, p1);
+        k.ssid = line.substring(p1 + 1, p2);
+        k.security = line.substring(p2 + 1);
+    }
+
+    file.close();
+}
+
+void SentinelWeb::saveSecurityBaseline() {
+
+    auto& sec =
+        appState.network.security;
+
+    File file =
+        LittleFS.open(KNOWN_APS_PATH, "w");
+
+    if (!file) {
+        return;
+    }
+
+    for (int i = 0; i < sec.knownCount; i++) {
+
+        file.print(sec.known[i].bssid);
+        file.print('|');
+        file.print(sec.known[i].ssid);
+        file.print('|');
+        file.println(sec.known[i].security);
+    }
+
+    file.close();
+}
+
 void SentinelWeb::analyzeSecurity() {
 
     auto& analyzer =
@@ -4723,6 +4805,7 @@ void SentinelWeb::analyzeSecurity() {
     int unknown = 0;
     int rogue = 0;
     int open = 0;
+    bool changed = false;
 
     for (
         int i = 0;
@@ -4814,6 +4897,9 @@ void SentinelWeb::analyzeSecurity() {
             k.ssid = n.ssid;
             k.security = n.security;
             k.seen = true;
+
+            // New baseline entry -> persist
+            changed = true;
         }
     }
 
@@ -4856,6 +4942,10 @@ void SentinelWeb::analyzeSecurity() {
 
     sec.prevRogue = rogue;
     sec.prevOpen = open;
+
+    if (changed) {
+        saveSecurityBaseline();
+    }
 }
 
 // ============================================================
