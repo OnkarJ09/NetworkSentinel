@@ -2,19 +2,9 @@
 #include "SentinelWeb.h"
 #include "AppState.h"
 #include "NetworkManager.h"
+#include "Config.h"
 
 SentinelWeb sentinelWeb;
-
-// ============================================================
-// ALERT THRESHOLDS
-// ============================================================
-
-// Intermittent connectivity: N drops within the window triggers an event
-static constexpr uint32_t OUTAGE_WINDOW_MS = 300000; // 5 min
-static constexpr uint8_t OUTAGE_LIMIT = 3;
-
-// Sustained internet latency above this is a "high latency" alert
-static constexpr float HIGH_LATENCY_MS = 150.0f;
 
 // ============================================================
 // HTML
@@ -2849,12 +2839,15 @@ void SentinelWeb::update() {
     auto& scanner =
         appState.network.lanScanner;
 
-    scanner.autoScanning = true;
+    scanner.autoScanning =
+        sentinelConfig.lanAutoScan;
 
     if (
+        sentinelConfig.lanAutoScan &&
         !scanner.scanning &&
         appState.network.wifiConnected &&
-        now - scanner.lastScan >= LAN_SCAN_INTERVAL_MS
+        now - scanner.lastScan >=
+            sentinelConfig.lanScanIntervalMs
     ) {
 
         sentinelNetwork.scanLAN();
@@ -4162,7 +4155,7 @@ void SentinelWeb::detectOutages() {
         if (
             appState.network.outageWindowStart == 0 ||
             now - appState.network.outageWindowStart >
-                OUTAGE_WINDOW_MS
+                sentinelConfig.outageWindowMs
         ) {
 
             appState.network.outageWindowStart = now;
@@ -4176,7 +4169,7 @@ void SentinelWeb::detectOutages() {
 
         if (
             appState.network.outageCount >=
-                OUTAGE_LIMIT &&
+                sentinelConfig.outageLimit &&
             !appState.network.intermittentReported
         ) {
 
@@ -4286,7 +4279,8 @@ void SentinelWeb::detectSpikes() {
 
     bool high =
         appState.network.internetOnline &&
-        appState.network.internetPing >= HIGH_LATENCY_MS;
+        appState.network.internetPing >=
+            (float)sentinelConfig.highLatencyMs;
 
     if (
         high &&
@@ -4684,8 +4678,9 @@ String SentinelWeb::createLANJSON() {
     uint32_t timeToNext = 0;
     if (!scanner.scanning) {
         int32_t elapsed = millis() - scanner.lastScan;
-        if (elapsed < LAN_SCAN_INTERVAL_MS) {
-            timeToNext = LAN_SCAN_INTERVAL_MS - elapsed;
+        if (elapsed < (int32_t)sentinelConfig.lanScanIntervalMs) {
+            timeToNext =
+                sentinelConfig.lanScanIntervalMs - elapsed;
         }
     }
     json +=

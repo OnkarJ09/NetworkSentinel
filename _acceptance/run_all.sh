@@ -51,6 +51,16 @@ else
 fi
 echo
 
+echo "[5/5] Config parser check (host)"
+echo "------------------------------------------"
+if bash ./check_config.sh; then
+    echo ">>> Config parser: PASS"
+else
+    echo ">>> Config parser: FAIL"
+    FAIL=1
+fi
+echo
+
 echo "=========================================="
 if [ $FAIL -eq 0 ]; then
     echo " RESULT: ALL ACCEPTANCE CHECKS PASSED"

@@ -2,6 +2,8 @@
 
 #include "AppState.h"
 
+#include "Config.h"
+
 #include "Buttons.h"
 
 #include "OLED.h"
@@ -969,6 +971,12 @@ void setup() {
 
     appState.bootTime =
         millis();
+
+    // --------------------------------------------------------
+    // CONFIG (LittleFS)
+    // --------------------------------------------------------
+
+    configBegin();
 
     // --------------------------------------------------------
     // INPUT

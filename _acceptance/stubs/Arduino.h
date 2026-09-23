@@ -5,6 +5,7 @@
 #include <string.h>
 #include <algorithm>
 #include <cstdio>
+#include <string>
 
 typedef bool boolean;
 typedef uint8_t byte;
@@ -12,40 +13,54 @@ typedef uint8_t byte;
 class String {
 public:
     String() {}
-    String(const char*) {}
-    String(const String&) {}
-    String(int) {}
-    String(unsigned int) {}
-    String(long) {}
-    String(unsigned long) {}
-    String(unsigned long long) {}
-    String(float, int = 2) {}
-    String(double, int = 2) {}
-    String& operator=(const String&) { return *this; }
-    String& operator=(const char*) { return *this; }
-    String& operator+=(const String&) { return *this; }
-    String& operator+=(const char*) { return *this; }
-    String& operator+=(int) { return *this; }
-    String& operator+=(unsigned int) { return *this; }
-    String& operator+=(long) { return *this; }
-    String& operator+=(unsigned long) { return *this; }
-    String& operator+=(float) { return *this; }
-    String& operator+=(double) { return *this; }
-    String operator+(const String&) const { return *this; }
-    String operator+(const char*) const { return *this; }
-    String operator+(int) const { return *this; }
+    String(const char* v) : s(v ? v : "") {}
+    String(const String& v) : s(v.s) {}
+    String(int v) : s(std::to_string(v)) {}
+    String(unsigned int v) : s(std::to_string(v)) {}
+    String(long v) : s(std::to_string(v)) {}
+    String(unsigned long v) : s(std::to_string(v)) {}
+    String(unsigned long long v) : s(std::to_string(v)) {}
+    String(float v, int = 2) : s(std::to_string(v)) {}
+    String(double v, int = 2) : s(std::to_string(v)) {}
+    String& operator=(const String& v) { s = v.s; return *this; }
+    String& operator=(const char* v) { s = v ? v : ""; return *this; }
+    String& operator+=(const String& v) { s += v.s; return *this; }
+    String& operator+=(const char* v) { if (v) s += v; return *this; }
+    String& operator+=(int v) { s += std::to_string(v); return *this; }
+    String& operator+=(unsigned int v) { s += std::to_string(v); return *this; }
+    String& operator+=(long v) { s += std::to_string(v); return *this; }
+    String& operator+=(unsigned long v) { s += std::to_string(v); return *this; }
+    String& operator+=(float v) { s += std::to_string(v); return *this; }
+    String& operator+=(double v) { s += std::to_string(v); return *this; }
+    String operator+(const String& v) const { String r(*this); r.s += v.s; return r; }
+    String operator+(const char* v) const { String r(*this); if (v) r.s += v; return r; }
+    String operator+(int v) const { return *this + String(v); }
     friend String operator+(const char* lhs, const String& rhs) { return String(lhs) + rhs; }
-    bool operator==(const char*) const { return false; }
-    bool operator!=(const char*) const { return false; }
-    bool operator==(const String&) const { return false; }
-    operator const char*() const { return ""; }
-    char charAt(unsigned int) const { return 0; }
-    int length() const { return 0; }
-    String substring(unsigned int) const { return *this; }
-    String substring(unsigned int, unsigned int) const { return *this; }
-    const char* c_str() const { return ""; }
-    int toInt() const { return 0; }
-    float toFloat() const { return 0; }
+    bool operator==(const char* v) const { return s == (v ? v : ""); }
+    bool operator!=(const char* v) const { return !(*this == v); }
+    bool operator==(const String& v) const { return s == v.s; }
+    bool operator!=(const String& v) const { return s != v.s; }
+    operator const char*() const { return s.c_str(); }
+    char charAt(unsigned int i) const { return i < s.size() ? s[i] : 0; }
+    int length() const { return (int)s.size(); }
+    String substring(unsigned int a) const { return a < s.size() ? String(s.substr(a).c_str()) : String(); }
+    String substring(unsigned int a, unsigned int b) const {
+        if (a >= s.size() || b <= a) return String();
+        return String(s.substr(a, b - a).c_str());
+    }
+    int indexOf(char c) const { auto p = s.find(c); return p == std::string::npos ? -1 : (int)p; }
+    int indexOf(const char* c) const { auto p = s.find(c); return p == std::string::npos ? -1 : (int)p; }
+    bool startsWith(const char* c) const { return s.rfind(c, 0) == 0; }
+    void trim() {
+        auto ws = [](char c){ return c==' '||c=='\t'||c=='\r'||c=='\n'; };
+        while (!s.empty() && ws(s.front())) s.erase(s.begin());
+        while (!s.empty() && ws(s.back())) s.pop_back();
+    }
+    const char* c_str() const { return s.c_str(); }
+    int toInt() const { return atoi(s.c_str()); }
+    float toFloat() const { return (float)atof(s.c_str()); }
+private:
+    std::string s;
 };
 
 class IPAddress {

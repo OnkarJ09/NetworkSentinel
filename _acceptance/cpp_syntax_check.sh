@@ -26,7 +26,7 @@ check() {
     fi
 }
 
-for f in AppState.cpp NetworkManager.cpp SentinelWeb.cpp OLED.cpp Buttons.cpp Menu.cpp; do
+for f in AppState.cpp Config.cpp NetworkManager.cpp SentinelWeb.cpp OLED.cpp Buttons.cpp Menu.cpp; do
     check "$f"
 done
 

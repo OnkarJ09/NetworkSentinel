@@ -26,6 +26,3 @@
 #define NETWORK_UPDATE_MS 10000
 #define BUTTON_DEBOUNCE_MS 25
 #define BUTTON_LONG_PRESS_MS 1000
-
-// Interval for automatic LAN scans (default 60 seconds)
-#define LAN_SCAN_INTERVAL_MS 60000
