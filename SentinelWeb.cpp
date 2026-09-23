@@ -1347,6 +1347,9 @@ Configuration
 </div>
 <div style="margin-top: 16px;">
 <button onclick="saveConfig()">Save Configuration</button>
+<button onclick="downloadConfig()">Download</button>
+<button onclick="document.getElementById('cfgFile').click()">Load</button>
+<input id="cfgFile" type="file" accept="application/json" style="display:none" onchange="loadConfigFile(this)">
 <button onclick="restartDevice()">Restart</button>
 <button onclick="factoryReset()">Factory Reset</button>
 <span id="cfgStatus" class="label"></span>
@@ -2544,6 +2547,83 @@ function saveConfig() {
                 status.textContent = "Save failed";
             }
         );
+}
+
+function downloadConfig() {
+
+    const data = {
+        lanScanIntervalMs:
+            document.getElementById(
+                "cfgLanScanIntervalMs"
+            ).value,
+        highLatencyMs:
+            document.getElementById(
+                "cfgHighLatencyMs"
+            ).value,
+        outageWindowMs:
+            document.getElementById(
+                "cfgOutageWindowMs"
+            ).value,
+        outageLimit:
+            document.getElementById(
+                "cfgOutageLimit"
+            ).value,
+        lanAutoScan:
+            document.getElementById(
+                "cfgLanAutoScan"
+            ).checked
+    };
+
+    const blob =
+        new Blob(
+            [JSON.stringify(data, null, 2)],
+            { type: "application/json" }
+        );
+
+    const link =
+        document.createElement("a");
+
+    link.href =
+        URL.createObjectURL(blob);
+
+    link.download =
+        "network-sentinel-config.json";
+
+    link.click();
+
+    URL.revokeObjectURL(link.href);
+}
+
+function loadConfigFile(input) {
+
+    const file = input.files[0];
+    if (!file) {
+        return;
+    }
+
+    const reader =
+        new FileReader();
+
+    reader.onload = () => {
+
+        try {
+
+            updateConfig(
+                JSON.parse(reader.result)
+            );
+
+            saveConfig();
+
+        } catch (e) {
+
+            document.getElementById(
+                "cfgStatus"
+            ).textContent = "Invalid config file";
+        }
+    };
+
+    reader.readAsText(file);
+    input.value = "";
 }
 
 function restartDevice() {
