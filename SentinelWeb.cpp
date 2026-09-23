@@ -1356,6 +1356,14 @@ Configuration
 </div>
 </div>
 
+<h2 style="margin-top: 32px;">
+Diagnostics
+</h2>
+<div class="card">
+<button onclick="loadDebug()">Refresh</button>
+<pre id="debugJson" style="white-space: pre-wrap; font-size: 12px;">--</pre>
+</div>
+
 </section>
 
 </main>
@@ -2549,6 +2557,23 @@ function saveConfig() {
         );
 }
 
+function loadDebug() {
+
+    fetch("/api/debug")
+        .then(
+            response => response.json()
+        )
+        .then(
+            data => {
+                document.getElementById(
+                    "debugJson"
+                ).textContent =
+                    JSON.stringify(data, null, 2);
+            }
+        )
+        .catch(() => {});
+}
+
 function downloadConfig() {
 
     const data = {
@@ -3298,6 +3323,14 @@ void SentinelWeb::setupRoutes() {
         HTTP_POST,
         [this]() {
             handleFactoryReset();
+        }
+    );
+
+    server.on(
+        "/api/debug",
+        HTTP_GET,
+        [this]() {
+            handleDebug();
         }
     );
 
@@ -5109,6 +5142,108 @@ String SentinelWeb::createConfigJSON() {
     return json;
 }
 
+String SentinelWeb::createDebugJSON() {
+
+    auto& n =
+        appState.network;
+
+    String json = "{";
+
+    json +=
+        "\"uptime\":" +
+        String(millis() - appState.bootTime) +
+        ",";
+
+    json +=
+        "\"loopTimeMs\":" +
+        String(appState.system.loopTimeMs) +
+        ",";
+
+    json +=
+        "\"maxLoopTimeMs\":" +
+        String(appState.system.maxLoopTimeMs) +
+        ",";
+
+    json +=
+        "\"freeHeap\":" +
+        String(ESP.getFreeHeap()) +
+        ",";
+
+    json +=
+        "\"minFreeHeap\":" +
+        String(appState.system.minFreeHeap) +
+        ",";
+
+    json +=
+        "\"bootCount\":" +
+        String(sentinelConfig.bootCount) +
+        ",";
+
+    json +=
+        "\"eventCount\":" +
+        String(appState.eventCount) +
+        ",";
+
+    json +=
+        "\"telemetryCount\":" +
+        String(appState.telemetryHistoryCount) +
+        ",";
+
+    json +=
+        "\"wifiReconnects\":" +
+        String(n.wifiReconnectCount) +
+        ",";
+
+    json +=
+        "\"outageCount\":" +
+        String(n.outageCount) +
+        ",";
+
+    json +=
+        "\"pingSpikes\":" +
+        String(n.pingSpikes) +
+        ",";
+
+    json +=
+        "\"lossSpikes\":" +
+        String(n.lossSpikes) +
+        ",";
+
+    json +=
+        "\"rssiDrops\":" +
+        String(n.rssiDrops) +
+        ",";
+
+    json +=
+        "\"healthScore\":" +
+        String(n.healthScore) +
+        ",";
+
+    json +=
+        "\"stabilityScore\":" +
+        String(n.stabilityScore) +
+        ",";
+
+    json +=
+        "\"knownAPs\":" +
+        String(n.security.knownCount) +
+        ",";
+
+    json +=
+        "\"lanDevices\":" +
+        String(n.lanScanner.deviceCount) +
+        ",";
+
+    json +=
+        "\"resetReason\":\"" +
+        String(resetReasonName(esp_reset_reason())) +
+        "\"";
+
+    json += "}";
+
+    return json;
+}
+
 void SentinelWeb::broadcastEvents() {
 
     if (webSocket.connectedClients() == 0) {
@@ -5202,6 +5337,15 @@ void SentinelWeb::handleFactoryReset() {
 
     delay(100);
     ESP.restart();
+}
+
+void SentinelWeb::handleDebug() {
+
+    server.send(
+        200,
+        "application/json",
+        createDebugJSON()
+    );
 }
 
 

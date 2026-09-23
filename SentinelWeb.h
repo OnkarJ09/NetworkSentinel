@@ -57,6 +57,8 @@ private:
 
     void handleFactoryReset();
 
+    void handleDebug();
+
     void handleNotFound();
 
     void recordTelemetry();
@@ -95,6 +97,8 @@ private:
     String createEventsJSON();
 
     String createConfigJSON();
+
+    String createDebugJSON();
 
     uint32_t lastTelemetryBroadcast = 0;
 
