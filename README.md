@@ -279,6 +279,8 @@ NetworkSentinel/
 ├── Buttons.cpp           # Button handling implementation
 ├── config.h              # Wi-Fi and hardware configuration
 ├── AppState.h            # Application state management
+├── Config.h              # Runtime config (LittleFS-backed)
+├── Config.cpp            # Config load/save implementation
 ├── OLED.h                # Display handling
 ├── Menu.h                # Menu system
 ├── NetworkManager.h      # Network monitoring core
@@ -308,6 +310,15 @@ Modify these settings for your environment:
 ### Button Timing
 - **BUTTON_DEBOUNCE_MS**: Mechanical debounce interval (25ms recommended)
 - **BUTTON_LONG_PRESS_MS**: Time to trigger long press (1000ms = 1 second)
+
+### Runtime Configuration
+Tunable limits are stored in `/config.txt` on LittleFS and can be edited from
+the System page, or via the API:
+- `GET /api/config` - current settings (JSON)
+- `POST /api/config` - update settings (form-encoded), saved to flash
+
+Settings: `lanScanIntervalMs`, `highLatencyMs`, `outageWindowMs`,
+`outageLimit`, `lanAutoScan`.
 
 ## How It Works
 

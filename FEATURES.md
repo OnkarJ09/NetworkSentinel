@@ -379,12 +379,12 @@ Eventually we can add persistent storage, but **not for every-second telemetry w
 
 Possible storage:
 
-* [ ] LittleFS configuration
+* [x] LittleFS configuration
 * [ ] Saved network profiles
 * [ ] Event history
 * [ ] Device history
-* [ ] User preferences
-* [ ] Threshold configuration
+* [x] User preferences
+* [x] Threshold configuration
 * [ ] Known AP database
 
 Potential architecture:
@@ -415,12 +415,12 @@ The ESP32 itself becomes monitored.
 * [x] Minimum free heap
 * [x] Heap history
 * [ ] CPU temperature where supported
-* [ ] Reset reason
-* [ ] Boot count
-* [ ] Firmware version
+* [x] Reset reason
+* [x] Boot count
+* [x] Firmware version
 * [x] Wi-Fi MAC
-* [ ] ESP32 chip information
-* [ ] Flash information
+* [x] ESP32 chip information
+* [x] Flash information
 
 System page:
 
@@ -439,7 +439,17 @@ WiFi MAC       XX:XX:XX:XX:XX:XX
 
 # 🔄 Phase 13 — Configuration
 
-Web UI will eventually allow configuration.
+Web UI allows configuration.
+
+Done:
+
+* [x] Config stored on LittleFS (`/config.txt`)
+* [x] `GET /api/config` read, `POST /api/config` write
+* [x] LAN scan interval, high-latency threshold, outage window/limit, auto-scan
+* [x] Configuration form on the System page
+* [ ] Ping interval, history length
+* [ ] Packet-loss / RSSI thresholds
+* [ ] Web-based restart / factory reset (see Phase 16)
 
 Examples:
 
@@ -689,11 +699,12 @@ LAN Monitoring   ████████████████████  D
 Events           ████████████████████  DONE
 Analytics        ████████████████████  DONE
 Security         ████████████████████  DONE
-Storage          ░░░░░░░░░░░░░░░░░░░░  NEXT
-Config           ░░░░░░░░░░░░░░░░░░░░
-OTA/Maintenance  ░░░░░░░░░░░░░░░░░░░░
+Storage          ███████░░░░░░░░░░░░░  IN PROGRESS
+Config           ████████████████░░░░  IN PROGRESS
+OTA/Maintenance  ░░░░░░░░░░░░░░░░░░░░  NEXT
 Reliability      ░░░░░░░░░░░░░░░░░░░░
 ```
 
-**Phases 1-10 complete. Immediate next targets: persistent storage (Phase 11,
-LittleFS config/event history) and web-based configuration (Phase 13).**
+**Phases 1-10 complete; Phase 11 (config persistence) and Phase 13 (web
+configuration) largely done. Remaining storage work: persisted event/device
+history and a saved known-AP database.**
