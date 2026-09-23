@@ -1345,6 +1345,8 @@ Configuration
 </div>
 <div style="margin-top: 16px;">
 <button onclick="saveConfig()">Save Configuration</button>
+<button onclick="restartDevice()">Restart</button>
+<button onclick="factoryReset()">Factory Reset</button>
 <span id="cfgStatus" class="label"></span>
 </div>
 </div>
@@ -2542,6 +2544,39 @@ function saveConfig() {
         );
 }
 
+function restartDevice() {
+
+    if (!confirm("Restart the device?")) {
+        return;
+    }
+
+    document.getElementById(
+        "cfgStatus"
+    ).textContent = "Restarting...";
+
+    fetch("/api/restart", { method: "POST" })
+        .catch(() => {});
+}
+
+function factoryReset() {
+
+    if (
+        !confirm(
+            "Factory reset? Settings will be " +
+            "erased and the device will reboot."
+        )
+    ) {
+        return;
+    }
+
+    document.getElementById(
+        "cfgStatus"
+    ).textContent = "Resetting...";
+
+    fetch("/api/reset", { method: "POST" })
+        .catch(() => {});
+}
+
 function formatUptime(
     milliseconds
 ) {
@@ -3163,6 +3198,22 @@ void SentinelWeb::setupRoutes() {
         HTTP_POST,
         [this]() {
             handleConfigPost();
+        }
+    );
+
+    server.on(
+        "/api/restart",
+        HTTP_POST,
+        [this]() {
+            handleRestart();
+        }
+    );
+
+    server.on(
+        "/api/reset",
+        HTTP_POST,
+        [this]() {
+            handleFactoryReset();
         }
     );
 
@@ -4950,6 +5001,37 @@ void SentinelWeb::handleConfigPost() {
         "application/json",
         createConfigJSON()
     );
+}
+
+void SentinelWeb::handleRestart() {
+
+    server.send(
+        200,
+        "application/json",
+        "{\"ok\":true}"
+    );
+
+    delay(100);
+    ESP.restart();
+}
+
+void SentinelWeb::handleFactoryReset() {
+
+    configReset();
+
+    logEvent(
+        EVENT_WARNING,
+        "Factory reset"
+    );
+
+    server.send(
+        200,
+        "application/json",
+        "{\"ok\":true}"
+    );
+
+    delay(100);
+    ESP.restart();
 }
 
 

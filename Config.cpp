@@ -75,6 +75,18 @@ void configSave() {
 }
 
 // ============================================================
+// RESET
+// ============================================================
+
+void configReset() {
+
+    LittleFS.remove(CONFIG_PATH);
+
+    // Restore defaults (bootCount intentionally reset too)
+    sentinelConfig = SentinelConfig();
+}
+
+// ============================================================
 // APPLY ONE LINE
 // ============================================================
 

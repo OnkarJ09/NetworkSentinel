@@ -53,6 +53,10 @@ private:
 
     void handleConfigPost();
 
+    void handleRestart();
+
+    void handleFactoryReset();
+
     void handleNotFound();
 
     void recordTelemetry();

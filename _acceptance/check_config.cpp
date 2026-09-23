@@ -43,6 +43,13 @@ int main() {
     configApplyLine("unknownKey=9");
     assert(sentinelConfig.highLatencyMs == before);
 
+    // Factory reset restores defaults
+    configReset();
+    assert(sentinelConfig.highLatencyMs == 150);
+    assert(sentinelConfig.lanScanIntervalMs == 60000);
+    assert(sentinelConfig.lanAutoScan == true);
+    assert(sentinelConfig.bootCount == 0);
+
     printf("config parser OK\n");
     return 0;
 }
