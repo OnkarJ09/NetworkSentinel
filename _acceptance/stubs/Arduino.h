@@ -115,14 +115,30 @@ public:
     uint32_t getMinFreeHeap() { return 0; }
     uint32_t getHeapSize() { return 0; }
     uint32_t getCpuFreqMHz() { return 0; }
-    int getChipModel() { return 0; }
+    const char* getChipModel() { return "ESP32"; }
     uint8_t getChipRevision() { return 0; }
+    uint32_t getFlashChipSize() { return 0; }
     const char* getSdkVersion() { return ""; }
     void restart() {}
     int arduinoVersion() { return 0; }
 };
 extern ESPClass ESP;
 inline uint32_t getCpuFrequencyMhz() { return 0; }
+
+// Reset reason enum stub
+typedef int esp_reset_reason_t;
+#define ESP_RST_UNKNOWN   0
+#define ESP_RST_POWERON   1
+#define ESP_RST_EXT       2
+#define ESP_RST_SW        3
+#define ESP_RST_PANIC     4
+#define ESP_RST_INT_WDT   5
+#define ESP_RST_TASK_WDT  6
+#define ESP_RST_WDT       7
+#define ESP_RST_DEEPSLEEP 8
+#define ESP_RST_BROWNOUT  9
+#define ESP_RST_SDIO      10
+inline esp_reset_reason_t esp_reset_reason() { return ESP_RST_POWERON; }
 
 // Arduino constants
 #define HIGH 1

@@ -14,28 +14,28 @@ void configBegin() {
 
     LittleFS.begin(true);
 
-    if (!LittleFS.exists(CONFIG_PATH)) {
+    if (LittleFS.exists(CONFIG_PATH)) {
 
-        configSave();
-        return;
+        File file =
+            LittleFS.open(CONFIG_PATH, "r");
+
+        if (file) {
+
+            while (file.available()) {
+
+                String line =
+                    file.readStringUntil('\n');
+
+                configApplyLine(line);
+            }
+
+            file.close();
+        }
     }
 
-    File file =
-        LittleFS.open(CONFIG_PATH, "r");
-
-    if (!file) {
-        return;
-    }
-
-    while (file.available()) {
-
-        String line =
-            file.readStringUntil('\n');
-
-        configApplyLine(line);
-    }
-
-    file.close();
+    // Count this boot, then persist
+    sentinelConfig.bootCount++;
+    configSave();
 }
 
 // ============================================================
@@ -67,6 +67,9 @@ void configSave() {
     file.println(
         sentinelConfig.lanAutoScan ? 1 : 0
     );
+
+    file.print("bootCount=");
+    file.println(sentinelConfig.bootCount);
 
     file.close();
 }
@@ -110,5 +113,7 @@ void configApplyLine(const String& raw) {
         sentinelConfig.outageLimit = (uint8_t)n;
     } else if (key == "lanAutoScan") {
         sentinelConfig.lanAutoScan = (n != 0);
+    } else if (key == "bootCount") {
+        sentinelConfig.bootCount = (uint32_t)n;
     }
 }

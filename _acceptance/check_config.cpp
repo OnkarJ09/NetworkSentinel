@@ -26,6 +26,9 @@ int main() {
     configApplyLine("lanAutoScan=1");
     assert(sentinelConfig.lanAutoScan == true);
 
+    configApplyLine("bootCount=7");
+    assert(sentinelConfig.bootCount == 7);
+
     // Whitespace tolerance
     configApplyLine("  highLatencyMs = 99  ");
     assert(sentinelConfig.highLatencyMs == 99);

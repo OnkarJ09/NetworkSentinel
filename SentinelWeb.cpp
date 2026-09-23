@@ -1268,6 +1268,38 @@ Max Loop
 --
 </div>
 </div>
+<div class="card">
+<div class="card-title">
+Chip
+</div>
+<div id="chipModel" class="value">
+--
+</div>
+</div>
+<div class="card">
+<div class="card-title">
+Flash
+</div>
+<div id="flashSize" class="value">
+--
+</div>
+</div>
+<div class="card">
+<div class="card-title">
+Reset Reason
+</div>
+<div id="resetReason" class="value">
+--
+</div>
+</div>
+<div class="card">
+<div class="card-title">
+Boot Count
+</div>
+<div id="bootCount" class="value">
+--
+</div>
+</div>
 </div>
 
 <h2 style="margin-top: 32px;">
@@ -1520,6 +1552,41 @@ function updateDashboard(
             "maxLoop"
         ).textContent =
             data.maxLoopTimeMs + " ms";
+    }
+
+    if (data.firmware !== undefined) {
+        document.getElementById(
+            "firmware"
+        ).textContent =
+            data.firmware;
+    }
+
+    if (data.chipModel !== undefined) {
+        document.getElementById(
+            "chipModel"
+        ).textContent =
+            data.chipModel;
+    }
+
+    if (data.flashSize !== undefined) {
+        document.getElementById(
+            "flashSize"
+        ).textContent =
+            data.flashSize + " KB";
+    }
+
+    if (data.resetReason !== undefined) {
+        document.getElementById(
+            "resetReason"
+        ).textContent =
+            data.resetReason;
+    }
+
+    if (data.bootCount !== undefined) {
+        document.getElementById(
+            "bootCount"
+        ).textContent =
+            data.bootCount;
     }
 
     if (
@@ -3642,6 +3709,25 @@ void SentinelWeb::handleNotFound() {
 // JSON
 // ============================================================
 
+static const char* resetReasonName(
+    esp_reset_reason_t reason
+) {
+
+    switch (reason) {
+
+        case ESP_RST_POWERON:   return "POWERON";
+        case ESP_RST_SW:        return "SOFTWARE";
+        case ESP_RST_PANIC:     return "PANIC";
+        case ESP_RST_INT_WDT:   return "INT_WDT";
+        case ESP_RST_TASK_WDT:  return "TASK_WDT";
+        case ESP_RST_WDT:       return "WDT";
+        case ESP_RST_DEEPSLEEP: return "DEEPSLEEP";
+        case ESP_RST_BROWNOUT:  return "BROWNOUT";
+        case ESP_RST_EXT:       return "EXTERNAL";
+        default:                return "UNKNOWN";
+    }
+}
+
 String SentinelWeb::createJSON() {
 
     auto& n =
@@ -3790,6 +3876,29 @@ String SentinelWeb::createJSON() {
     json +=
         "\"wifiTxPower\":" +
         String(appState.system.wifiTxPower) +
+        ",";
+
+    json +=
+        "\"firmware\":\"V6.0\",";
+
+    json +=
+        "\"chipModel\":\"" +
+        String(ESP.getChipModel()) +
+        "\",";
+
+    json +=
+        "\"flashSize\":" +
+        String(ESP.getFlashChipSize() / 1024) +
+        ",";
+
+    json +=
+        "\"resetReason\":\"" +
+        String(resetReasonName(esp_reset_reason())) +
+        "\",";
+
+    json +=
+        "\"bootCount\":" +
+        String(sentinelConfig.bootCount) +
         ",";
 
     json +=
