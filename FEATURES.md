@@ -7,10 +7,9 @@ Absolutely. If we're treating **Network Sentinel** as a serious ESP32-S3 network
 Already done / foundation:
 
 * [x] ESP32-S3 platform
-* [x] 16×1 LCD local display
-* [x] Analog joystick navigation
-* [x] Joystick push-button selection
-* [x] Responsive joystick dead-zone/extreme detection
+* [x] 128×64 SSD1306 I2C OLED display
+* [x] 4-button navigation (UP / DOWN / BACK / OK)
+* [x] Debounced button input with long-press support
 * [x] Menu/navigation system
 * [x] Modular C++ architecture
 * [x] Central `AppState`
@@ -30,8 +29,8 @@ Already done / foundation:
 * [x] Wi-Fi RSSI
 * [x] Wi-Fi channel
 * [x] Connection status
-* [ ] Connection uptime
-* [ ] Wi-Fi reconnect detection
+* [x] Connection uptime
+* [x] Wi-Fi reconnect detection
 * [ ] Roaming/reconnection event logging
 
 ### Wi-Fi scanner
@@ -51,7 +50,7 @@ Already done / foundation:
 * [x] Weakest AP
 * [ ] Channel utilization visualization
 * [ ] 2.4-GHz channel distribution
-* [ ] Hidden SSID detection/count
+* [x] Hidden SSID detection/count
 * [ ] Sort networks by signal
 * [ ] Sort networks by channel
 * [ ] Sort networks by security
@@ -68,24 +67,24 @@ The ESP32 becomes an actual **network diagnostic device**.
 * [x] Gateway reachability
 * [x] Internet reachability
 * [x] DNS reachability
-* [ ] Internet outage detection
-* [ ] Gateway outage detection
-* [ ] DNS outage detection
+* [x] Internet outage detection
+* [x] Gateway outage detection
+* [x] DNS outage detection
 
 ### Latency
 
 * [x] Internet ping
-* [ ] Gateway latency
-* [ ] DNS resolution latency
-* [ ] Internet latency history
-* [ ] Latency spike detection
+* [x] Gateway latency
+* [x] DNS resolution latency
+* [x] Internet latency history
+* [x] Latency spike detection
 
 ### Packet quality
 
 * [x] Packet loss measurement
-* [ ] Packet-loss history
-* [ ] Packet-loss spike detection
-* [ ] Connection stability score
+* [x] Packet-loss history
+* [x] Packet-loss spike detection
+* [x] Connection stability score
 
 ### Network health score
 
@@ -107,24 +106,24 @@ Latency    █████████░  91
 
 # 📈 Phase 4 — Historical Monitoring
 
-This is the phase we're currently entering.
+Implemented — 60-sample RAM ring buffer plus live web graphs.
 
 ### Telemetry history
 
-* [ ] 60-second RAM history
-* [ ] Ping history
-* [ ] RSSI history
-* [ ] Packet-loss history
-* [ ] DNS latency history
-* [ ] Connection-state history
+* [x] 60-second RAM history
+* [x] Ping history
+* [x] RSSI history
+* [x] Packet-loss history
+* [x] DNS latency history
+* [x] Connection-state history
 
 ### Graphs
 
-* [ ] Live ping graph
-* [ ] Live RSSI graph
-* [ ] Live packet-loss graph
-* [ ] Live DNS-latency graph
-* [ ] Graph auto-scaling
+* [x] Live ping graph
+* [x] Live RSSI graph
+* [x] Live packet-loss graph
+* [x] Live DNS-latency graph
+* [x] Graph auto-scaling
 * [ ] Graph resizing
 * [ ] Current-value indicator
 * [ ] Historical min/max
@@ -151,7 +150,7 @@ PING
 
 # ⚡ Phase 5 — Real-Time Web Interface
 
-Already started.
+Implemented.
 
 ### HTTP server
 
@@ -166,12 +165,12 @@ Already started.
 ### WebSocket
 
 * [x] WebSocket server foundation
-* [ ] Live telemetry
-* [ ] Live Wi-Fi statistics
-* [ ] History synchronization
-* [ ] Automatic reconnection
-* [ ] Connection status
-* [ ] Real-time events
+* [x] Live telemetry
+* [x] Live Wi-Fi statistics
+* [x] History synchronization
+* [x] Automatic reconnection
+* [x] Connection status
+* [x] Real-time events
 
 ### Dashboard
 
@@ -198,19 +197,19 @@ Already started.
 
 # 🖥️ Phase 6 — LAN Discovery
 
-This is one of the big features.
+Implemented over TCP connect probing (ports 80/443).
 
 ### Network discovery
 
-* [ ] Detect local subnet
-* [ ] Determine subnet mask
-* [ ] Determine gateway
-* [ ] Scan local subnet
-* [ ] Discover responding hosts
-* [ ] Device count
-* [ ] Online/offline state
-* [ ] Response latency
-* [ ] Hostname lookup where available
+* [x] Detect local subnet
+* [x] Determine subnet mask
+* [x] Determine gateway
+* [x] Scan local subnet
+* [x] Discover responding hosts
+* [x] Device count
+* [x] Online/offline state
+* [x] Response latency
+* [x] Hostname lookup where available
 * [ ] MAC address where legitimately available
 
 Example:
@@ -272,16 +271,16 @@ Network Sentinel should eventually have its own event system.
 
 * [ ] Wi-Fi connected
 * [ ] Wi-Fi disconnected
-* [ ] Internet lost
-* [ ] Internet restored
-* [ ] Gateway unreachable
-* [ ] DNS failure
+* [x] Internet lost
+* [x] Internet restored
+* [x] Gateway unreachable
+* [x] DNS failure
 * [ ] High latency
-* [ ] Packet-loss spike
+* [x] Packet-loss spike
 * [ ] New LAN device
 * [ ] LAN device offline
 * [ ] Network security change
-* [ ] Significant RSSI change
+* [x] Significant RSSI change
 
 ### Severity
 
@@ -315,15 +314,15 @@ This is where it becomes much more advanced.
 
 ### Automatic analysis
 
-* [ ] Determine strongest Wi-Fi network
-* [ ] Determine weakest network
-* [ ] Detect congested channels
-* [ ] Detect unusually poor RSSI
-* [ ] Detect latency anomalies
-* [ ] Detect packet-loss anomalies
+* [x] Determine strongest Wi-Fi network
+* [x] Determine weakest network
+* [x] Detect congested channels
+* [x] Detect unusually poor RSSI
+* [x] Detect latency anomalies
+* [x] Detect packet-loss anomalies
 * [ ] Detect intermittent connectivity
-* [ ] Calculate network health
-* [ ] Calculate stability score
+* [x] Calculate network health
+* [x] Calculate stability score
 * [ ] Recommend better Wi-Fi channels
 
 Example:
@@ -349,8 +348,8 @@ WEAK SIGNAL
 
 Keeping this on the **defensive monitoring** side:
 
-* [ ] Open Wi-Fi detection
-* [ ] Encryption-type monitoring
+* [x] Open Wi-Fi detection
+* [x] Encryption-type monitoring
 * [ ] Unknown-network detection
 * [ ] New AP detection
 * [ ] AP disappearance detection
@@ -413,13 +412,13 @@ The ESP32 itself becomes monitored.
 * [x] Free heap
 * [x] CPU frequency
 * [x] Uptime
-* [ ] Minimum free heap
-* [ ] Heap history
+* [x] Minimum free heap
+* [x] Heap history
 * [ ] CPU temperature where supported
 * [ ] Reset reason
 * [ ] Boot count
 * [ ] Firmware version
-* [ ] Wi-Fi MAC
+* [x] Wi-Fi MAC
 * [ ] ESP32 chip information
 * [ ] Flash information
 
@@ -462,7 +461,7 @@ WiFi
 Auto reconnect      ON
 ```
 
-And potentially configure the LCD/joystick behavior.
+And potentially configure the OLED/button behavior.
 
 ---
 
@@ -474,58 +473,58 @@ Eventually:
 
 ### Dashboard
 
-* Live cards
-* Graphs
-* Health score
-* Network status
-* Event feed
+* [x] Live cards
+* [x] Graphs
+* [x] Health score
+* [x] Network status
+* [x] Event feed
 
 ### Wi-Fi
 
-* AP table
-* Channel chart
-* RSSI chart
-* Security overview
-* Scan controls
+* [x] AP table
+* [ ] Channel chart
+* [x] RSSI chart
+* [x] Security overview
+* [ ] Scan controls
 
 ### LAN
 
-* Device table
-* Device details
-* Availability
-* Latency
-* Discovery controls
+* [x] Device table
+* [ ] Device details
+* [x] Availability
+* [x] Latency
+* [x] Discovery controls
 
 ### Internet
 
-* Ping
-* DNS
-* Gateway
-* Packet loss
-* Stability
+* [x] Ping
+* [x] DNS
+* [x] Gateway
+* [x] Packet loss
+* [x] Stability
 
 ### Events
 
-* Timeline
-* Severity
-* Filtering
-* Search
+* [x] Timeline
+* [x] Severity
+* [ ] Filtering
+* [ ] Search
 
 ### System
 
-* ESP32 information
-* Memory
-* CPU
-* Uptime
-* Firmware
+* [x] ESP32 information
+* [x] Memory
+* [x] CPU
+* [x] Uptime
+* [ ] Firmware
 
 ---
 
-# 🎮 Phase 15 — LCD + Joystick Interface
+# 🎮 Phase 15 — OLED + Button Interface
 
 The web UI shouldn't make the physical device useless.
 
-The LCD should provide a compact version.
+The OLED provides a compact version, driven by the 4 physical buttons.
 
 Possible menu:
 
@@ -542,14 +541,13 @@ NETWORK SENTINEL
 └────────────────┘
 ```
 
-Joystick:
+Buttons:
 
 ```text
-UP       ↑
-DOWN     ↓
-LEFT     ←
-RIGHT    →
-PRESS    SELECT
+UP       previous item
+DOWN     next item
+OK       select / scan
+BACK     back  (long press = Home)
 ```
 
 You can move between pages without touching the browser.
@@ -576,15 +574,15 @@ Eventually:
 Before calling it a finished appliance:
 
 * [ ] Watchdog handling
-* [ ] Automatic Wi-Fi recovery
-* [ ] WebSocket recovery
+* [x] Automatic Wi-Fi recovery
+* [x] WebSocket recovery
 * [ ] Memory leak testing
 * [ ] Long-duration testing
 * [ ] Network-disconnect testing
 * [ ] Router-reboot testing
 * [ ] Web UI stress testing
 * [ ] Wi-Fi scanner stress testing
-* [ ] Joystick responsiveness testing
+* [ ] Button responsiveness testing
 * [ ] Concurrent-task testing
 
 Target:
@@ -613,7 +611,7 @@ The eventual Network Sentinel will look roughly like:
        │                         │                         │
  ┌─────┴─────┐          ┌────────┼────────┐          ┌─────┴─────┐
  │           │          │        │        │          │           │
-LCD       Joystick     WiFi     LAN    Internet     Heap       CPU
+OLED      Buttons      WiFi     LAN    Internet     Heap       CPU
  │                      │        │        │
  └──────────┐           └────────┼────────┘
             │                    │
@@ -683,14 +681,16 @@ We're roughly here:
 ```text
 FOUNDATION       ████████████████████  DONE
 WiFi             ████████████████████  DONE
-Network Health   ███████████████░░░░░  IN PROGRESS
-Web UI           ███████████████░░░░░  IN PROGRESS
-History/Graphs   ████████░░░░░░░░░░░░  CURRENT
-LAN Discovery    ░░░░░░░░░░░░░░░░░░░░  NEXT
-Events           ░░░░░░░░░░░░░░░░░░░░
-Analytics        ░░░░░░░░░░░░░░░░░░░░
-Security         ░░░░░░░░░░░░░░░░░░░░
+Network Health   ████████████████████  DONE
+Web UI           ████████████████████  DONE
+History/Graphs   ████████████████████  DONE
+LAN Discovery    ████████████████████  DONE
+Events           ███████████░░░░░░░░░  IN PROGRESS
+Analytics        ██████████████░░░░░░  IN PROGRESS
+Security         ████░░░░░░░░░░░░░░░░  NEXT
+Storage          ░░░░░░░░░░░░░░░░░░░░
 OTA/Maintenance  ░░░░░░░░░░░░░░░░░░░░
 ```
 
-**So our immediate next target remains the live telemetry/history + graphs. After that, LAN discovery is the major milestone.**
+**Immediate next targets: finish the Event & Alert engine (Phase 8) and the
+OLED Events screen, then the Network Intelligence / Security items (Phases 9-10).**
