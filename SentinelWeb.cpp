@@ -648,6 +648,10 @@ Telemetry Graphs
 WiFi Analyzer
 </h1>
 
+<div style="margin-bottom: 16px;">
+<button onclick="startWiFiScan()">Scan Networks</button>
+</div>
+
 <div class="grid">
 
 <div class="card">
@@ -2557,6 +2561,13 @@ function saveConfig() {
         );
 }
 
+function startWiFiScan() {
+
+    fetch("/api/wifi/scan", { method: "POST" })
+        .then(() => refresh())
+        .catch(() => {});
+}
+
 function loadDebug() {
 
     fetch("/api/debug")
@@ -3287,6 +3298,14 @@ void SentinelWeb::setupRoutes() {
     );
 
     server.on(
+        "/api/wifi/scan",
+        HTTP_POST,
+        [this]() {
+            handleWiFiScan();
+        }
+    );
+
+    server.on(
         "/api/events",
         HTTP_GET,
         [this]() {
@@ -3857,6 +3876,17 @@ void SentinelWeb::handleLANScan() {
         202,
         "application/json",
         createLANJSON()
+    );
+}
+
+void SentinelWeb::handleWiFiScan() {
+
+    sentinelNetwork.scanWiFi();
+
+    server.send(
+        202,
+        "application/json",
+        createWiFiJSON()
     );
 }
 

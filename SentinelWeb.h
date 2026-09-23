@@ -47,6 +47,8 @@ private:
 
     void handleLANScan();
 
+    void handleWiFiScan();
+
     void handleEvents();
 
     void handleConfig();
