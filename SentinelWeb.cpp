@@ -3828,6 +3828,35 @@ void SentinelWeb::detectOutages() {
     uint32_t now = millis();
 
     // -------------------------------------------------------
+    // WIFI
+    // -------------------------------------------------------
+
+    if (
+        appState.network.wifiWasConnected &&
+        !appState.network.wifiConnected
+    ) {
+
+        recordEvent(
+            EVENT_WARNING,
+            "Wi-Fi disconnected"
+        );
+    }
+
+    if (
+        !appState.network.wifiWasConnected &&
+        appState.network.wifiConnected
+    ) {
+
+        recordEvent(
+            EVENT_INFO,
+            "Wi-Fi connected"
+        );
+    }
+
+    appState.network.wifiWasConnected =
+        appState.network.wifiConnected;
+
+    // -------------------------------------------------------
     // INTERNET
     // -------------------------------------------------------
 

@@ -792,6 +792,83 @@ void drawLAN() {
 }
 
 
+// ============================================================
+// EVENTS SCREEN
+// ============================================================
+
+static int eventScroll = 0;
+
+void drawEvents() {
+
+    oled.clear();
+
+    oled.header(
+        "EVENTS"
+    );
+
+    uint8_t count =
+        appState.eventCount;
+
+    if (count == 0) {
+
+        oled.text(
+            0,
+            20,
+            "No events yet"
+        );
+
+        oled.update();
+
+        return;
+    }
+
+    if (eventScroll > count - 1) {
+        eventScroll = count - 1;
+    }
+
+    for (int row = 0; row < 4; row++) {
+
+        int age = eventScroll + row;
+
+        if (age >= count) {
+            break;
+        }
+
+        int idx =
+            ((int)appState.eventHead - 1 - age +
+             MAX_EVENTS) % MAX_EVENTS;
+
+        EventEntry& e =
+            appState.events[idx];
+
+        const char* tag =
+            e.severity == EVENT_CRITICAL ? "!"
+            : e.severity == EVENT_WARNING ? "*"
+            : "-";
+
+        String msg = e.message;
+
+        if (msg.length() > 18) {
+            msg = msg.substring(0, 18);
+        }
+
+        oled.text(
+            0,
+            12 + row * 12,
+            String(tag) + " " + msg
+        );
+    }
+
+    oled.text(
+        108,
+        0,
+        String(eventScroll + 1) + "/" + String(count)
+    );
+
+    oled.update();
+}
+
+
 void drawCurrentScreen() {
 
     if (
@@ -839,19 +916,7 @@ void drawCurrentScreen() {
 
         case 5:
 
-            oled.clear();
-
-            oled.header(
-                "EVENTS"
-            );
-
-            oled.text(
-                0,
-                20,
-                "COMING NEXT"
-            );
-
-            oled.update();
+            drawEvents();
 
             break;
 
@@ -1084,6 +1149,32 @@ void loop() {
 
         if (buttons.wasPressed(BUTTON_OK)) {
             sentinelNetwork.scanLAN();
+        }
+
+        if (buttons.wasPressed(BUTTON_BACK)) {
+            menu.back();
+        }
+    }
+
+    // ========================================================
+    // EVENTS
+    // ========================================================
+
+    else if (
+        menu.selected() == 5
+    ) {
+
+        if (buttons.wasPressed(BUTTON_UP)) {
+            if (eventScroll > 0) {
+                eventScroll--;
+            }
+        }
+
+        if (buttons.wasPressed(BUTTON_DOWN)) {
+            if (eventScroll <
+                appState.eventCount - 1) {
+                eventScroll++;
+            }
         }
 
         if (buttons.wasPressed(BUTTON_BACK)) {

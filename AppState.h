@@ -227,6 +227,8 @@ struct NetworkState {
 
     bool dnsWasOnline = false;
 
+    bool wifiWasConnected = false;
+
     // --------------------------------------------------------
     // SPIKE / STABILITY
     // --------------------------------------------------------
