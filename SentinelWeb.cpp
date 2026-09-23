@@ -5324,6 +5324,8 @@ void SentinelWeb::handleFactoryReset() {
 
     configReset();
 
+    eventsReset();
+
     logEvent(
         EVENT_WARNING,
         "Factory reset"

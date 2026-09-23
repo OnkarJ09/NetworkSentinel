@@ -51,12 +51,12 @@ else
 fi
 echo
 
-echo "[5/5] Config parser check (host)"
+echo "[5/5] Host logic checks (config + event parser)"
 echo "------------------------------------------"
-if bash ./check_config.sh; then
-    echo ">>> Config parser: PASS"
+if bash ./check_host.sh; then
+    echo ">>> Host logic: PASS"
 else
-    echo ">>> Config parser: FAIL"
+    echo ">>> Host logic: FAIL"
     FAIL=1
 fi
 echo

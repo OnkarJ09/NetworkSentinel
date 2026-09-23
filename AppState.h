@@ -397,4 +397,13 @@ struct AppState {
 // Shared event-log writer, callable from any module (NetworkManager, SentinelWeb)
 void logEvent(uint8_t severity, const String& message);
 
+// Load persisted events from /events.txt (last MAX_EVENTS) and trim the file.
+void eventsBegin();
+
+// Clear the event log and delete /events.txt (factory reset).
+void eventsReset();
+
+// Parse one "timestamp|severity|message" line. Used by the loader and host tests.
+bool parseEventLine(const String& line, EventEntry& out);
+
 extern AppState appState;
