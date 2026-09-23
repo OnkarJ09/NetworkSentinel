@@ -151,6 +151,13 @@ typedef int esp_reset_reason_t;
 #define ESP_RST_SDIO      10
 inline esp_reset_reason_t esp_reset_reason() { return ESP_RST_POWERON; }
 
+// Task watchdog stubs (Arduino core owns TWDT init)
+typedef int esp_err_t;
+#define ESP_OK 0
+inline esp_err_t esp_task_wdt_add(void*) { return ESP_OK; }
+inline esp_err_t esp_task_wdt_reset() { return ESP_OK; }
+inline esp_err_t esp_task_wdt_delete(void*) { return ESP_OK; }
+
 // Arduino constants
 #define HIGH 1
 #define LOW 0

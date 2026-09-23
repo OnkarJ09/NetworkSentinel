@@ -1049,6 +1049,10 @@ void setup() {
     ArduinoOTA.setHostname("network-sentinel");
     ArduinoOTA.begin();
 
+    // Feed the task watchdog from the main loop. Arduino core already
+    // configures the TWDT; add() just subscribes this task to it.
+    esp_task_wdt_add(nullptr);
+
     // --------------------------------------------------------
     // DRAW
     // --------------------------------------------------------
@@ -1068,6 +1072,12 @@ void setup() {
 void loop() {
 
     uint32_t loopStart = millis();
+
+    // -------------------------------------------------------
+    // WATCHDOG
+    // -------------------------------------------------------
+
+    esp_task_wdt_reset();
 
     // -------------------------------------------------------
     // OTA
