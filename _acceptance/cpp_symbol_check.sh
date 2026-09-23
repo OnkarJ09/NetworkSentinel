@@ -109,7 +109,7 @@ check_class() {
 }
 
 check_class OLED          OLED.h
-check_class Joystick      Joystick.h
+check_class Buttons       Buttons.h
 check_class Menu          Menu.h
 check_class AppState      AppState.h
 check_class SentinelNetwork NetworkManager.h

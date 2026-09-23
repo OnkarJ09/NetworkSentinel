@@ -1,6 +1,12 @@
 #pragma once
 #include <Arduino.h>
 
+// Button pin definitions
+#define BUTTON_UP_PIN    4
+#define BUTTON_DOWN_PIN  5
+#define BUTTON_BACK_PIN  6
+#define BUTTON_OK_PIN    7
+
 enum ButtonId {
     BUTTON_UP,
     BUTTON_DOWN,
@@ -19,9 +25,6 @@ public:
     bool isHeld(ButtonId button);
 
 private:
-    static const uint32_t DEBOUNCE_MS = 25;
-    static const uint32_t LONG_PRESS_MS = 1000;
-
     struct ButtonState {
         bool lastState = HIGH;
         bool stableState = HIGH;
@@ -33,5 +36,5 @@ private:
     };
 
     ButtonState states[BUTTON_COUNT];
-    const uint8_t pins[BUTTON_COUNT] = {4, 5, 6, 7}; // UP, DOWN, BACK, OK
+    const uint8_t pins[BUTTON_COUNT] = {BUTTON_UP_PIN, BUTTON_DOWN_PIN, BUTTON_BACK_PIN, BUTTON_OK_PIN}; // UP, DOWN, BACK, OK
 };

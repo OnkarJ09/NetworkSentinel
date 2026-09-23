@@ -165,7 +165,7 @@ void drawWiFi() {
         oled.text(
             0,
             48,
-            "Joystick OK"
+            "OK = SCAN"
         );
 
         oled.update();
@@ -190,13 +190,13 @@ void drawWiFi() {
         oled.text(
             0,
             32,
-            "PRESS = SCAN"
+            "OK = SCAN"
         );
 
         oled.text(
             0,
             46,
-            "RIGHT = SCAN"
+            "BACK = RETURN"
         );
 
         oled.update();
@@ -716,7 +716,7 @@ void drawLAN() {
         oled.text(
             0,
             34,
-            "PRESS = SCAN"
+            "OK = SCAN"
         );
 
         oled.text(
@@ -1017,7 +1017,7 @@ void loop() {
         }
 
         if (buttons.wasPressed(BUTTON_BACK)) {
-            menu.select(); // BACK acts as select in main menu (same as joystick press)
+            menu.select(); // BACK acts as select in main menu (same as OK press)
         }
     }
 

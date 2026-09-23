@@ -209,7 +209,7 @@ void Menu::draw() {
     oled.text(
         0,
         35,
-        "LEFT = BACK"
+        "BACK = RETURN"
     );
 
     oled.update();

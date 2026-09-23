@@ -34,7 +34,7 @@ void Buttons::update() {
         }
 
         // Check if debounce period has passed
-        if (now - state.lastChangeTime >= DEBOUNCE_MS) {
+        if (now - state.lastChangeTime >= BUTTON_DEBOUNCE_MS) {
             // State is stable
             if (rawState != state.stableState) {
                 state.stableState = rawState;
@@ -53,7 +53,7 @@ void Buttons::update() {
 
         // Check for long press
         if (state.stableState == LOW && !state.longPressedReported) {
-            if (now - state.pressedTime >= LONG_PRESS_MS) {
+            if (now - state.pressedTime >= BUTTON_LONG_PRESS_MS) {
                 state.longPressedReported = true;
             }
         }

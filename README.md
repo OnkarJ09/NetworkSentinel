@@ -284,8 +284,6 @@ NetworkSentinel/
 ├── NetworkManager.h      # Network monitoring core
 ├── SentinelWeb.h         # Web server and WebSocket
 ├── SentinelWeb.cpp       # Web server implementation
-├── Joystick.h            # Legacy joystick interface (unused)
-├── Joystick.cpp          # Legacy joystick implementation (unused)
 ├── LICENSE               # MIT License
 ├── README.md             # This file
 └── buttons_implement.md  # Button implementation specifications
@@ -300,16 +298,16 @@ Modify these settings for your environment:
 #define WIFI_PASSWORD   "YourNetworkPassword"
 
 // Button timing (usually no need to change)
-#define DEBOUNCE_MS     25
-#define LONG_PRESS_MS   1000
+#define BUTTON_DEBOUNCE_MS    25
+#define BUTTON_LONG_PRESS_MS  1000
 
 // Display settings
 #define DISPLAY_UPDATE_MS 100
 ```
 
 ### Button Timing
-- **DEBOUNCE_MS**: Mechanical debounce interval (25ms recommended)
-- **LONG_PRESS_MS**: Time to trigger long press (1000ms = 1 second)
+- **BUTTON_DEBOUNCE_MS**: Mechanical debounce interval (25ms recommended)
+- **BUTTON_LONG_PRESS_MS**: Time to trigger long press (1000ms = 1 second)
 
 ## How It Works
 
@@ -354,8 +352,8 @@ Modify the button handling sections in `loop()`:
 
 ### Adjusting Sensitivity
 Change thresholds in `Buttons.cpp`:
-- Debounce timing: DEBOUNCE_MS constant
-- Long press timing: LONG_PRESS_MS constant
+- Debounce timing: BUTTON_DEBOUNCE_MS constant
+- Long press timing: BUTTON_LONG_PRESS_MS constant
 
 ## Troubleshooting
 
