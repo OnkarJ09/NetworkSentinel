@@ -2,10 +2,10 @@
 #include <Arduino.h>
 
 // Button pin definitions
-#define BUTTON_UP_PIN    4
-#define BUTTON_DOWN_PIN  5
-#define BUTTON_BACK_PIN  6
-#define BUTTON_OK_PIN    7
+#define BUTTON_UP_PIN    13
+#define BUTTON_DOWN_PIN  10
+#define BUTTON_BACK_PIN  11
+#define BUTTON_OK_PIN    12
 
 enum ButtonId {
     BUTTON_UP,

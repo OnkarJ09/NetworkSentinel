@@ -11,8 +11,8 @@
 // OLED
 // ============================================================
 
-#define OLED_SDA 8
-#define OLED_SCL 9
+#define OLED_SDA 4
+#define OLED_SCL 5
 #define OLED_ADDR 0x3C
 
 #define OLED_WIDTH 128

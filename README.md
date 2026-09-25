@@ -73,21 +73,21 @@ ESP32-S3        OLED Display      Buttons
 --------        --------------      -------
 3V3     ─────── VCC
 GND     ─────── GND
-GPIO8   ─────── SDA
-GPIO9   ─────── SCL
-GPIO4   ─────── [UP BUTTON] ──── GND
-GPIO5   ─────── [DOWN BUTTON] ── GND
-GPIO6   ─────── [BACK BUTTON] ── GND
-GPIO7   ─────── [OK BUTTON] ──── GND
+GPIO4   ─────── SDA
+GPIO5   ─────── SCL
+GPIO13  ─────── [UP BUTTON] ──── GND
+GPIO10  ─────── [DOWN BUTTON] ── GND
+GPIO11  ─────── [BACK BUTTON] ── GND
+GPIO12  ─────── [OK BUTTON] ──── GND
 ```
 
 ### Button Wiring
 Each button connects between its GPIO pin and ground:
 ```
-GPIO 4 ─── [UP BUTTON] ─── GND
-GPIO 5 ─── [DOWN BUTTON] ─ GND
-GPIO 6 ─── [BACK BUTTON] ─ GND
-GPIO 7 ─── [OK BUTTON] ─── GND
+GPIO 13 ─── [UP BUTTON] ─── GND
+GPIO 10 ─── [DOWN BUTTON] ─ GND
+GPIO 11 ─── [BACK BUTTON] ─ GND
+GPIO 12 ─── [OK BUTTON] ─── GND
 ```
 
 All buttons use the ESP32's internal pull-up resistors:
@@ -384,13 +384,13 @@ Change thresholds in `Buttons.cpp`:
 ### Common Issues
 
 #### OLED Not Displaying
-- Check wiring: SDA→GPIO8, SCL→GPIO9
+- Check wiring: SDA→GPIO4, SCL→GPIO5
 - Verify I2C address (usually 0x3C for SSD1306)
 - Ensure 3.3V power to VCC pin
 - Try different OLED library version
 
 #### Buttons Not Responding
-- Verify button wiring to correct GPIOs (4,5,6,7)
+- Verify button wiring to correct GPIOs (UP 13, DOWN 10, BACK 11, OK 12)
 - Check for shorts between button pins and ground
 - Ensure no external pull-ups conflicting with internal ones
 - Test with Serial.print for debugging

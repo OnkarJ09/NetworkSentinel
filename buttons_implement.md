@@ -9,7 +9,7 @@ Replace the analog joystick navigation with four physical push buttons:
 - BACK
 - OK / SCAN
 
-The OLED remains on the existing I2C pins.
+The OLED moves to GPIO 4 (SDA) / GPIO 5 (SCL) for cleaner PCB routing.
 
 The implementation must be modular, non-blocking, debounced, and compatible with the existing Network Sentinel architecture.
 
@@ -19,10 +19,10 @@ The implementation must be modular, non-blocking, debounced, and compatible with
 
 | Button | ESP32-S3 GPIO | Other terminal |
 |---|---:|---|
-| UP | GPIO 4 | GND |
-| DOWN | GPIO 5 | GND |
-| BACK | GPIO 6 | GND |
-| OK / SCAN | GPIO 7 | GND |
+| UP | GPIO 13 | GND |
+| DOWN | GPIO 10 | GND |
+| BACK | GPIO 11 | GND |
+| OK / SCAN | GPIO 12 | GND |
 
 Use the ESP32 internal pull-up resistors.
 
@@ -30,22 +30,22 @@ Use the ESP32 internal pull-up resistors.
 
 | OLED Pin | ESP32-S3 GPIO |
 |---|---:|
-| SDA | GPIO 8 |
-| SCL | GPIO 9 |
+| SDA | GPIO 4 |
+| SCL | GPIO 5 |
 | VCC | 3.3V |
 | GND | GND |
 
-Do not change the working OLED wiring.
+OLED shares the freed-up GPIO 4/5 pins; buttons move to 10-13.
 
 ## 3. Button Electrical Configuration
 
 Each button is wired between its GPIO and GND:
 
 ```text
-GPIO 4 ─── [UP BUTTON] ─── GND
-GPIO 5 ─── [DOWN BUTTON] ─ GND
-GPIO 6 ─── [BACK BUTTON] ─ GND
-GPIO 7 ─── [OK BUTTON] ─── GND
+GPIO 13 ─── [UP BUTTON] ─── GND
+GPIO 10 ─── [DOWN BUTTON] ─ GND
+GPIO 11 ─── [BACK BUTTON] ─ GND
+GPIO 12 ─── [OK BUTTON] ─── GND
 ```
 
 Configure every button with:
@@ -409,8 +409,8 @@ Do not change the working OLED hardware configuration.
 Keep:
 
 ```text
-SDA → GPIO 8
-SCL → GPIO 9
+SDA → GPIO 4
+SCL → GPIO 5
 ```
 
 The OLED should continue displaying:
@@ -430,17 +430,17 @@ Redraw only when necessary rather than continuously redrawing the entire display
 Before powering the ESP32-S3:
 
 ```text
-[ ] UP button: GPIO 4 ↔ button ↔ GND
-[ ] DOWN button: GPIO 5 ↔ button ↔ GND
-[ ] BACK button: GPIO 6 ↔ button ↔ GND
-[ ] OK button: GPIO 7 ↔ button ↔ GND
+[ ] UP button: GPIO 13 ↔ button ↔ GND
+[ ] DOWN button: GPIO 10 ↔ button ↔ GND
+[ ] BACK button: GPIO 11 ↔ button ↔ GND
+[ ] OK button: GPIO 12 ↔ button ↔ GND
 
-[ ] OLED SDA → GPIO 8
-[ ] OLED SCL → GPIO 9
+[ ] OLED SDA → GPIO 4
+[ ] OLED SCL → GPIO 5
 [ ] OLED VCC → 3.3V
 [ ] OLED GND → GND
 
-[ ] No joystick connected to GPIO 4–7
+[ ] No joystick connected
 [ ] No external pull-up resistors required
 [ ] Common GND is connected
 ```
@@ -503,7 +503,7 @@ After button integration verify that:
 
 Do not:
 
-- change OLED GPIO 8/9
+- change OLED GPIO 4/5
 - introduce blocking delays
 - introduce a new UI framework
 - add unnecessary libraries
@@ -521,11 +521,11 @@ The implementation is complete when:
 
 1. Four buttons work reliably.
 2. GPIO mapping is exactly:
-   - GPIO 4 = UP
-   - GPIO 5 = DOWN
-   - GPIO 6 = BACK
-   - GPIO 7 = OK/SCAN
-3. OLED remains on GPIO 8/9.
+   - GPIO 13 = UP
+   - GPIO 10 = DOWN
+   - GPIO 11 = BACK
+   - GPIO 12 = OK/SCAN
+3. OLED moves to GPIO 4/5.
 4. Debouncing works.
 5. Short presses generate one event.
 6. Long press support works.
